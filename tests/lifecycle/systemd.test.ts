@@ -41,8 +41,9 @@ function fakeRunner(
 async function makeDirs(): Promise<{ unitDir: string; configFile: string }> {
   const root = await mkdtemp(join(tmpdir(), "claudex-sysd-"));
   const unitDir = join(root, "systemd", "user");
-  const configFile = join(root, "gateway-persistent.yaml");
-  await writeFile(configFile, 'host: "127.0.0.1"\n');
+  // installService embeds but never reads this path; keep it POSIX-style so
+  // the Linux-only unit renderer also passes on Windows/macOS CI hosts.
+  const configFile = "/fixtures/claudex/gateway-persistent.yaml";
   return { unitDir, configFile };
 }
 
