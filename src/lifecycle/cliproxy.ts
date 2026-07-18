@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { ClaudexConfig } from "../config/defaults.js";
+import type { ClaudexPaths } from "../platform/paths.js";
 import { assertEmbeddablePath, ensureOwnerOnlyDir } from "../security/permissions.js";
 import type { GatewayLauncher, HealthProbe, LaunchRequest } from "./session.js";
 
@@ -11,7 +13,9 @@ const LOOPBACK_PATTERN = /^(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|localhost)$/;
  * upstream config.example.yaml of the pinned release. The gateway stays
  * loopback-only, management stays local, and telemetry stays off.
  */
-export function renderSessionConfig(request: LaunchRequest): string {
+export function renderSessionConfig(
+  request: Pick<LaunchRequest, "host" | "port" | "clientSecret" | "paths">,
+): string {
   // Hard guards: these invariants must not be disabled by any caller.
   if (!LOOPBACK_PATTERN.test(request.host)) {
     throw new Error(`Refusing to render a gateway config for non-loopback host "${request.host}".`);
@@ -49,6 +53,28 @@ export async function writeSessionConfig(request: LaunchRequest): Promise<string
   const configFile = join(sessionsDir, `gateway-${request.port}.yaml`);
   // Contains the per-session client secret, so it must stay owner-only.
   await writeFile(configFile, renderSessionConfig(request), { mode: 0o600 });
+  return configFile;
+}
+
+/**
+ * Writes the persistent-mode gateway configuration referenced by the systemd
+ * unit and by login runs. Same rendering (and hard guards) as session mode,
+ * but at a stable path with the persistent client secret.
+ */
+export async function writePersistentConfig(
+  paths: ClaudexPaths,
+  config: ClaudexConfig,
+  clientSecret: string,
+): Promise<string> {
+  await ensureOwnerOnlyDir(paths.stateDir);
+  const configFile = join(paths.stateDir, "gateway-persistent.yaml");
+  const rendered = renderSessionConfig({
+    host: config.runtime.host,
+    port: config.runtime.port,
+    clientSecret,
+    paths,
+  });
+  await writeFile(configFile, rendered, { mode: 0o600 });
   return configFile;
 }
 
