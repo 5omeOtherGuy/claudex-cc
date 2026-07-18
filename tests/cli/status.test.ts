@@ -58,7 +58,7 @@ test("status reports launch readiness through the injected probe", async () => {
 
 test("human-readable status is stable and secret-free", async () => {
   const paths = await makePaths();
-  const report = await collectStatus({ paths });
+  const report = await collectStatus({ paths, env: {} });
   const rendered = renderStatusReport(report);
 
   assert.match(rendered, /^Claudex /);
@@ -67,4 +67,48 @@ test("human-readable status is stable and secret-free", async () => {
   assert.match(rendered, /auth: not logged in/);
   assert.match(rendered, /launch: blocked/);
   assert.doesNotMatch(rendered, /token|secret/i);
+});
+
+test("session guidance detects launches that bypass the gateway", async () => {
+  const paths = await makePaths();
+
+  const plain = await collectStatus({ paths, env: {} });
+  assert.equal(plain.session.throughGateway, false);
+  assert.match(plain.session.detail, /cannot switch providers/);
+
+  const viaGateway = await collectStatus({
+    paths,
+    env: { ANTHROPIC_BASE_URL: "http://127.0.0.1:8317" },
+  });
+  assert.equal(viaGateway.session.throughGateway, true);
+
+  const foreign = await collectStatus({
+    paths,
+    env: { ANTHROPIC_BASE_URL: "https://example.invalid" },
+  });
+  assert.equal(foreign.session.throughGateway, false);
+  assert.match(foreign.session.detail, /does not manage/);
+  assert.ok(
+    !JSON.stringify(foreign.session).includes("example.invalid"),
+    "the base URL value itself is never echoed",
+  );
+});
+
+test("drift surfaces version skew between active gateway, config, and manifest", async () => {
+  const paths = await makePaths();
+  const versionDir = join(paths.dataDir, "gateway", "versions", "1.0.0");
+  await mkdir(versionDir, { recursive: true });
+  const binary = join(versionDir, "cli-proxy-api");
+  await writeFile(binary, "#!/bin/sh\n", { mode: 0o755 });
+  await writeFile(
+    join(paths.dataDir, "gateway", "active.json"),
+    JSON.stringify({ version: "1.0.0", binaryFile: binary }),
+  );
+
+  const report = await collectStatus({ paths, env: {} });
+  assert.ok(report.drift.some((entry) => entry.includes("Active gateway 1.0.0")));
+  assert.ok(report.drift.some((entry) => entry.includes("run setup")));
+
+  const rendered = renderStatusReport(report);
+  assert.match(rendered, /drift: Active gateway 1\.0\.0/);
 });

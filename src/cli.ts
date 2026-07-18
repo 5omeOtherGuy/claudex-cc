@@ -9,6 +9,8 @@ import { runLaunchCommand } from "./commands/launch.js";
 import { runLoginCommand } from "./commands/login.js";
 import { renderSetupReport, runSetup } from "./commands/setup.js";
 import { collectStatus, renderStatusReport } from "./commands/status.js";
+import { renderUninstallReport, runUninstall } from "./commands/uninstall.js";
+import { renderUpdateReport, runUpdateCommand } from "./commands/update.js";
 import { loadConfig } from "./config/store.js";
 import { ensurePersistentSecret } from "./launcher/launch.js";
 import { defaultHealthProbe } from "./lifecycle/cliproxy.js";
@@ -32,11 +34,13 @@ Commands:
   status [--json]            Show manager, gateway, auth, and launch readiness
   doctor [--offline] [--json] [--allow-live-inference]
                              Run redacted diagnostics with remediations
+  update [--check] [--json]  Show or apply the pinned gateway update with
+                             checksum verification and rollback
+  uninstall (--keep-credentials | --delete-credentials) [--delete-config] [--json]
+                             Remove Claudex-managed components; the credential
+                             choice is explicit and separate
   version                    Print the Claudex version
   help                       Show this help
-
-Planned commands:
-  update, uninstall
 `;
 
 function write(value: string): void {
@@ -138,10 +142,47 @@ async function run(argv: readonly string[]): Promise<number> {
       write(result.output);
       return result.exitCode;
     }
-    case "update":
-    case "uninstall":
-      write(`${command} is planned but not implemented in this repository scaffold.\n`);
-      return 2;
+    case "update": {
+      const paths = resolveCurrentPlatformPaths();
+      const report = await runUpdateCommand({
+        paths,
+        platform: process.platform,
+        arch: process.arch,
+        unitDir: join(homedir(), ".config", "systemd", "user"),
+        apply: !args.includes("--check"),
+      });
+      if (json) {
+        writeJson(report);
+      } else {
+        write(renderUpdateReport(report));
+      }
+      return report.ok ? 0 : 1;
+    }
+    case "uninstall": {
+      const keep = args.includes("--keep-credentials");
+      const remove = args.includes("--delete-credentials");
+      if (keep === remove) {
+        write(
+          "Uninstall needs an explicit credential decision: pass exactly one of --keep-credentials or --delete-credentials.\n",
+        );
+        return 64;
+      }
+      const paths = resolveCurrentPlatformPaths();
+      const report = await runUninstall({
+        paths,
+        platform: process.platform,
+        binDir: join(homedir(), ".local", "bin"),
+        unitDir: join(homedir(), ".config", "systemd", "user"),
+        removeCredentials: remove,
+        removeConfig: args.includes("--delete-config"),
+      });
+      if (json) {
+        writeJson(report);
+      } else {
+        write(renderUninstallReport(report));
+      }
+      return report.ok ? 0 : 1;
+    }
     default:
       write(`Unknown command: ${command}\n\n${HELP}`);
       return 64;
