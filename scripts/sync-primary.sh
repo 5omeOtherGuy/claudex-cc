@@ -22,5 +22,9 @@ if [ "$ahead" -gt 0 ]; then
   exit 0
 fi
 
-git -C "$repo_top" update-ref refs/heads/main "$remote_sha" "$local_sha"
+# A plain update-ref would move only the ref and leave the index and working
+# tree at the old commit; merge --ff-only updates all three together.
+current_branch=$(git -C "$repo_top" symbolic-ref --quiet --short HEAD || true)
+[ "$current_branch" = "main" ] || { printf 'sync-primary: primary must have main checked out (found %s)\n' "${current_branch:-detached HEAD}" >&2; exit 14; }
+git -C "$repo_top" merge --ff-only --quiet refs/remotes/origin/main || { printf 'sync-primary: fast-forward failed\n' >&2; exit 21; }
 printf 'sync-primary: fast-forwarded main by %s commit(s)\n' "$behind"
