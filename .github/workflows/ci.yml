@@ -55,4 +55,13 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Offline doctor smoke
-        run: node dist/src/cli.js doctor --offline --json
+        shell: bash
+        # Exit 1 means "problems diagnosed" (expected on a bare runner);
+        # anything else is a crash. The output must be valid JSON.
+        run: |
+          set +e
+          out=$(node dist/src/cli.js doctor --offline --json)
+          code=$?
+          set -e
+          printf '%s' "$out" | node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"
+          [ "$code" -eq 0 ] || [ "$code" -eq 1 ]
