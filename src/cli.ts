@@ -7,6 +7,7 @@ import { runConfigCommand } from "./commands/config.js";
 import { renderDoctorReport, runDoctor } from "./commands/doctor.js";
 import { runLaunchCommand } from "./commands/launch.js";
 import { runLoginCommand } from "./commands/login.js";
+import { renderRollbackReport, runRollbackCommand } from "./commands/rollback.js";
 import { renderSetupReport, runSetup } from "./commands/setup.js";
 import { collectStatus, renderStatusReport } from "./commands/status.js";
 import { renderUninstallReport, runUninstall } from "./commands/uninstall.js";
@@ -34,8 +35,10 @@ Commands:
   status [--json]            Show manager, gateway, auth, and launch readiness
   doctor [--offline] [--json] [--allow-live-inference]
                              Run redacted diagnostics with remediations
-  update [--check] [--json]  Show or apply the pinned gateway update with
-                             checksum verification and rollback
+  update [--check] [--json] [--allow-live-inference]
+                             Show or apply the pinned gateway update; staged
+                             smoke checks gate activation, with rollback
+  rollback [--json]          Reactivate the previously active gateway version
   uninstall (--keep-credentials | --delete-credentials) [--delete-config] [--json]
                              Remove Claudex-managed components; the credential
                              choice is explicit and separate
@@ -150,11 +153,26 @@ async function run(argv: readonly string[]): Promise<number> {
         arch: process.arch,
         unitDir: join(homedir(), ".config", "systemd", "user"),
         apply: !args.includes("--check"),
+        allowLiveInference: args.includes("--allow-live-inference"),
       });
       if (json) {
         writeJson(report);
       } else {
         write(renderUpdateReport(report));
+      }
+      return report.ok ? 0 : 1;
+    }
+    case "rollback": {
+      const paths = resolveCurrentPlatformPaths();
+      const report = await runRollbackCommand({
+        paths,
+        platform: process.platform,
+        unitDir: join(homedir(), ".config", "systemd", "user"),
+      });
+      if (json) {
+        writeJson(report);
+      } else {
+        write(renderRollbackReport(report));
       }
       return report.ok ? 0 : 1;
     }
