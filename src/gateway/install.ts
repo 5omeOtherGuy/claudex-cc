@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, rename, rm } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import type { ClaudexPaths } from "../platform/paths.js";
+import { ensureOwnerOnlyDir } from "../security/permissions.js";
 import { type GatewayManifest, selectArtifact } from "./manifest.js";
 
 const execFileAsync = promisify(execFile);
@@ -78,8 +79,8 @@ export async function installGatewayVersion(options: InstallOptions): Promise<In
   const versionsDir = join(gatewayDir, "versions");
   const versionDir = join(versionsDir, options.manifest.version);
 
-  await mkdir(downloadsDir, { recursive: true, mode: 0o700 });
-  await mkdir(versionsDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(downloadsDir);
+  await ensureOwnerOnlyDir(versionsDir);
 
   const downloadFile = join(
     downloadsDir,
@@ -105,6 +106,26 @@ export async function installGatewayVersion(options: InstallOptions): Promise<In
     // directory with a single atomic rename.
     await mkdir(stagingDir, { recursive: true, mode: 0o700 });
     await extractor({ archiveFile: downloadFile, targetDir: stagingDir });
+
+    // Containment: the binary must be a regular file physically inside the
+    // staging directory — no symlink escapes or traversal-crafted archives.
+    const stagedBinary = join(stagingDir, artifact.binaryName);
+    const info = await lstat(stagedBinary).catch(() => undefined);
+    if (info === undefined || !info.isFile()) {
+      return {
+        ok: false,
+        error: `Archive did not contain ${artifact.binaryName} as a regular file; refusing to install.`,
+      };
+    }
+    const stagingReal = await realpath(stagingDir);
+    const binaryReal = await realpath(stagedBinary);
+    if (binaryReal !== join(stagingReal, artifact.binaryName)) {
+      return {
+        ok: false,
+        error: "Extracted binary resolves outside the staging directory; refusing to install.",
+      };
+    }
+
     await rm(versionDir, { recursive: true, force: true });
     await rename(stagingDir, versionDir);
 

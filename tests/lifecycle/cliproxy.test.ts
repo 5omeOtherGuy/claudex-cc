@@ -33,7 +33,7 @@ test("session config binds loopback, points at the credentials dir, and locks do
 
   assert.match(rendered, /host: "127\.0\.0\.1"/);
   assert.match(rendered, /port: 8317/);
-  assert.ok(rendered.includes(`auth-dir: "${request.paths.credentialsDir}"`));
+  assert.ok(rendered.includes(`auth-dir: '${request.paths.credentialsDir}'`));
   assert.ok(rendered.includes(`- "${request.clientSecret}"`));
   assert.match(rendered, /allow-remote: false/);
   assert.match(rendered, /usage-statistics-enabled: false/);

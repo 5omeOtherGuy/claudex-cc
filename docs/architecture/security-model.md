@@ -25,7 +25,11 @@
 - only one PKCE browser attempt is active at a time
 - callback material never enters chat, issues, logs, or shell history by design
 - artifacts are pinned, checksum-verified, staged, and rollback-capable
-- diagnostics use metadata only and central redaction
+- extracted gateway binaries must be regular files contained in the staging
+  directory; symlink and traversal payloads fail closed
+- diagnostics use metadata only and central redaction; optional live inference
+  requires explicit consent and a bounded token budget
+- pre-existing state directories are tightened to owner-only on every use
 - default CI has no real credentials or live provider access
 - normal `claude` configuration is not modified
 
