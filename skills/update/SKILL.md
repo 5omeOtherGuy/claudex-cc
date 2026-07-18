@@ -4,6 +4,20 @@ description: Safely update Claudex or its pinned gateway with verification and r
 allowed-tools: Bash, AskUserQuestion
 ---
 
-Update behavior is not implemented in the scaffold. Never download or execute an
-artifact without a pinned version and verified checksum. Future updates must
-stage health checks and retain the previous known-good version for rollback.
+Updates are staged and checksum-verified; the previous gateway version is kept
+for rollback. Never download or execute anything yourself — the control CLI is
+the only updater.
+
+1. Run `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl update --check` and show
+   the user the plan: current version, target version, SHA-256, and the
+   compatibility impact line. If it reports "Nothing to do", stop here.
+2. Ask with AskUserQuestion whether to apply the update now.
+3. On confirmation, run `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl update`
+   and report each step faithfully. A failed health check rolls back to the
+   previous version automatically; if the output says rollback did not
+   complete, tell the user to run doctor before launching — do not retry
+   blindly.
+4. After a successful update, remind the user that running `claudex` sessions
+   keep their current gateway process; the update takes effect for new
+   `claudex` launches (the persistent service was already restarted by the
+   CLI).
