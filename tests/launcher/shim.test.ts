@@ -69,3 +69,15 @@ test("remove deletes only managed shims and is idempotent", async () => {
   assert.equal(refused.ok, false);
   await stat(file);
 });
+
+test("windows shim uses CRLF line endings so cmd.exe parses it", () => {
+  const shim = renderShim("win32", "C:\\Users\\u\\AppData\\Local\\claudex\\cli.js");
+  assert.ok(shim.includes("\r\n"), "cmd scripts need CRLF");
+  assert.ok(!shim.replaceAll("\r\n", "").includes("\r"), "no stray CR characters");
+});
+
+test("cmd expansion characters in the manager entry are refused", () => {
+  // %VAR% expansion inside claudex.cmd would execute an attacker-influenced
+  // path; the embeddable-path guard must reject it.
+  assert.throws(() => renderShim("win32", "C:\\Data\\%EVIL%\\cli.js"), /refusing/i);
+});

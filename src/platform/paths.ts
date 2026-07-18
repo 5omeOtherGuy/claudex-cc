@@ -97,3 +97,24 @@ export function resolveCurrentPlatformPaths(): ClaudexPaths {
     env: process.env,
   });
 }
+
+/**
+ * Directory for the stable `claudex` launcher (ADR 0002): a user-writable
+ * executables directory that survives plugin cache rotation. Users add it to
+ * PATH once; the platform docs cover how.
+ */
+export function resolveLauncherBinDir(context: PlatformContext): string {
+  if (context.platform === "win32") {
+    const local = context.env.LOCALAPPDATA ?? win32.join(context.homedir, "AppData", "Local");
+    return win32.join(local, "claudex", "bin");
+  }
+  return posix.join(context.homedir, ".local", "bin");
+}
+
+export function resolveCurrentLauncherBinDir(): string {
+  return resolveLauncherBinDir({
+    platform: process.platform,
+    homedir: osHomedir(),
+    env: process.env,
+  });
+}
