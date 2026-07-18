@@ -168,6 +168,39 @@ test("live inference runs only with explicit consent and stays bounded", async (
   assert.ok(parsed.max_tokens <= 16, "live inference must stay bounded");
 });
 
+test("live inference classifies request compatibility failures without recommending re-login", async () => {
+  const paths = await makePaths();
+  await installFixtures(paths);
+  const fetchFn: DoctorFetch = async (url) => {
+    if (url.endsWith("/v1/models")) {
+      return {
+        status: 200,
+        bodyText: async () => JSON.stringify({ data: [{ id: DEFAULT_CONFIG.models.main }] }),
+      };
+    }
+    if (url.endsWith("/v1/messages")) {
+      return { status: 400, bodyText: async () => '{"detail":"unsupported request parameter"}' };
+    }
+    return { status: 200, bodyText: async () => "{}" };
+  };
+
+  const report = await runDoctor({
+    paths,
+    platform: "linux",
+    arch: "x64",
+    nodeVersion: "v22.19.0",
+    fetchFn,
+    clientSecret: SECRET,
+    allowLiveInference: true,
+  });
+  const live = report.checks.find((check) => check.name === "live-inference");
+
+  assert.equal(live?.status, "fail");
+  assert.match(live?.detail ?? "", /HTTP 400|compatibility/i);
+  assert.match(live?.remediation ?? "", /compatibility|update/i);
+  assert.doesNotMatch(live?.remediation ?? "", /login/i);
+});
+
 test("doctor output never contains secrets or token material", async () => {
   const paths = await makePaths();
   await installFixtures(paths);
