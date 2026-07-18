@@ -1,0 +1,46 @@
+name: Live compatibility (protected)
+
+# Manual-only, gated behind the "live-compatibility" protected environment
+# (configure required reviewers there). Never triggered by pull requests, so
+# PR code has no path to the credential secret. All output passes through the
+# central redaction helpers; only check names and statuses are printed.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "run-live-checks" to confirm a billed-account run'
+        required: true
+      include_inference:
+        description: "Also run the bounded stream/tool checks (billed requests, max_tokens 8)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-compat
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Bounded live checks
+    runs-on: ubuntu-latest
+    environment: live-compatibility
+    timeout-minutes: 20
+    if: inputs.confirm == 'run-live-checks'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Run bounded live compatibility checks
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          LIVE_COMPAT_INFERENCE: ${{ inputs.include_inference && 'true' || 'false' }}
+        run: node scripts/live-compat.mjs
