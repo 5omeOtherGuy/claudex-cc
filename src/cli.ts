@@ -8,7 +8,7 @@ import { renderDoctorReport, runDoctor } from "./commands/doctor.js";
 import { runLaunchCommand } from "./commands/launch.js";
 import { runLoginCommand } from "./commands/login.js";
 import { renderRollbackReport, runRollbackCommand } from "./commands/rollback.js";
-import { renderSetupReport, runSetup } from "./commands/setup.js";
+import { buildSetupPlan, renderSetupReport, runSetup } from "./commands/setup.js";
 import { collectStatus, renderStatusReport } from "./commands/status.js";
 import { renderUninstallReport, runUninstall } from "./commands/uninstall.js";
 import { renderUpdateReport, runUpdateCommand } from "./commands/update.js";
@@ -26,6 +26,7 @@ Usage:
 
 Commands:
   setup [--json]             Install the pinned gateway, service, and launcher
+  setup --plan               Print the machine-readable guided-setup contract
   login [--browser]          Authenticate Codex (device flow by default);
                              run this in an interactive terminal
   launch [args...]           Start Claude Code through the local gateway
@@ -103,6 +104,15 @@ async function run(argv: readonly string[]): Promise<number> {
     }
     case "setup": {
       const paths = resolveCurrentPlatformPaths();
+      if (args.includes("--plan")) {
+        const loaded = await loadConfig(paths);
+        if (!loaded.ok) {
+          write(`${loaded.error}\n`);
+          return 1;
+        }
+        writeJson(buildSetupPlan(loaded.config));
+        return 0;
+      }
       const report = await runSetup({
         paths,
         platform: process.platform,

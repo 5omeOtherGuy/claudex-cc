@@ -1,6 +1,7 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import type { ClaudexConfig } from "../config/defaults.js";
+import { REASONING_EFFORT_VALUES, RUNTIME_MODE_VALUES } from "../config/schema.js";
 import { loadConfig, saveConfig } from "../config/store.js";
 import { activateGatewayVersion } from "../gateway/activate.js";
 import { type Downloader, type Extractor, installGatewayVersion } from "../gateway/install.js";
@@ -26,6 +27,153 @@ export interface SetupReport {
   readonly ok: boolean;
   readonly steps: readonly SetupStep[];
   readonly relaunchRequired: boolean;
+}
+
+interface SetupPlanOption {
+  readonly label: string;
+  readonly value: string;
+  readonly description: string;
+}
+
+export interface SetupPlan {
+  readonly version: 1;
+  readonly current: {
+    readonly runtimeMode: ClaudexConfig["runtime"]["mode"];
+    readonly models: ClaudexConfig["models"];
+    readonly reasoningEffort: ClaudexConfig["reasoning"]["effort"];
+  };
+  readonly profile: {
+    readonly header: "Setup profile";
+    readonly question: string;
+    readonly options: readonly SetupPlanOption[];
+    readonly recommendedChanges: readonly [
+      { readonly key: "runtime.mode"; readonly value: "persistent" },
+    ];
+  };
+  readonly customization: readonly [
+    {
+      readonly id: "runtime";
+      readonly key: "runtime.mode";
+      readonly header: "Runtime";
+      readonly question: string;
+      readonly values: typeof RUNTIME_MODE_VALUES;
+      readonly options: readonly SetupPlanOption[];
+    },
+    {
+      readonly id: "models";
+      readonly keys: readonly ["models.main", "models.subagent", "models.fallback"];
+      readonly header: "Models";
+      readonly question: string;
+      readonly inputFormat: string;
+      readonly options: readonly SetupPlanOption[];
+    },
+    {
+      readonly id: "reasoning";
+      readonly key: "reasoning.effort";
+      readonly scope: "global";
+      readonly appliesTo: readonly ["main", "subagent", "fallback"];
+      readonly header: "Reasoning";
+      readonly question: string;
+      readonly values: typeof REASONING_EFFORT_VALUES;
+      readonly options: readonly SetupPlanOption[];
+      readonly otherValues: readonly ["xhigh", "max"];
+    },
+  ];
+}
+
+/** Machine-readable setup contract consumed by the plugin skill. */
+export function buildSetupPlan(config: ClaudexConfig): SetupPlan {
+  return {
+    version: 1,
+    current: {
+      runtimeMode: config.runtime.mode,
+      models: config.models,
+      reasoningEffort: config.reasoning.effort,
+    },
+    profile: {
+      header: "Setup profile",
+      question: "Select a setup profile.",
+      options: [
+        {
+          label: "Recommended configuration",
+          value: "recommended",
+          description:
+            "Use a persistent gateway and retain the current model IDs and global reasoning effort.",
+        },
+        {
+          label: "Customize",
+          value: "customize",
+          description: "Review the supported runtime, model, and global reasoning settings.",
+        },
+      ],
+      recommendedChanges: [{ key: "runtime.mode", value: "persistent" }],
+    },
+    customization: [
+      {
+        id: "runtime",
+        key: "runtime.mode",
+        header: "Runtime",
+        question: "Select the gateway runtime.",
+        values: RUNTIME_MODE_VALUES,
+        options: [
+          {
+            label: "Persistent (Recommended)",
+            value: "persistent",
+            description: "Run one managed background gateway for fast session startup.",
+          },
+          {
+            label: "Session",
+            value: "session",
+            description: "Start and stop an isolated gateway with each Claude Code session.",
+          },
+        ],
+      },
+      {
+        id: "models",
+        keys: ["models.main", "models.subagent", "models.fallback"],
+        header: "Models",
+        question: "Retain the current model IDs or provide all three role assignments?",
+        inputFormat: "main=<id>, subagent=<id>, fallback=<id>",
+        options: [
+          {
+            label: "Retain current models (Recommended)",
+            value: "current",
+            description: "Keep the displayed main, subagent, and fallback model IDs.",
+          },
+          {
+            label: "Custom model IDs",
+            value: "custom",
+            description:
+              "Provide exact IDs for main, subagent, and fallback; no role may be omitted.",
+          },
+        ],
+      },
+      {
+        id: "reasoning",
+        key: "reasoning.effort",
+        scope: "global",
+        appliesTo: ["main", "subagent", "fallback"],
+        header: "Reasoning",
+        question: "Select one global reasoning effort for all models.",
+        values: REASONING_EFFORT_VALUES,
+        options: [
+          {
+            label: "Keep current (Recommended)",
+            value: "current",
+            description: "Retain the displayed global reasoning effort.",
+          },
+          { label: "Low", value: "low", description: "Use low reasoning effort globally." },
+          {
+            label: "Medium",
+            value: "medium",
+            description: "Use medium reasoning effort globally.",
+          },
+          { label: "High", value: "high", description: "Use high reasoning effort globally." },
+        ],
+        otherValues: ["xhigh", "max"],
+      },
+    ],
+  };
 }
 
 export interface SetupOptions {

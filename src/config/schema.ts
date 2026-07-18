@@ -2,6 +2,9 @@ import type { ClaudexConfig } from "./defaults.js";
 
 export const CONFIG_VERSION = 2;
 
+export const RUNTIME_MODE_VALUES = ["persistent", "session"] as const;
+export const REASONING_EFFORT_VALUES = ["low", "medium", "high", "xhigh", "max"] as const;
+
 /**
  * Tokens reserved beyond the response budget for tool results and reasoning
  * traces between the compaction threshold and the advertised window. Derived
@@ -53,7 +56,7 @@ function positiveInteger(value: unknown): string | undefined {
 
 const SCHEMA: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>> = {
   runtime: {
-    mode: enumOf("persistent", "session"),
+    mode: enumOf(...RUNTIME_MODE_VALUES),
     host: (value) =>
       typeof value === "string" && isLoopbackHost(value)
         ? undefined
@@ -77,7 +80,7 @@ const SCHEMA: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>> = {
     fallback: nonEmptyString,
   },
   reasoning: {
-    effort: enumOf("low", "medium", "high", "xhigh", "max"),
+    effort: enumOf(...REASONING_EFFORT_VALUES),
   },
   context: {
     advertisedWindow: positiveInteger,
