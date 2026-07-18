@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, verify, and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Verify release metadata and package allowlist
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: node scripts/verify-release.mjs
+      - name: Build package
+        id: pack
+        run: |
+          tarball=$(npm pack | tail -1)
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          sha256sum "$tarball" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Generate SBOM
+        run: npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json
+      - name: Packed-plugin smoke
+        # The marketplace installs exactly this tarball; the manifest, skills,
+        # launcher, and CLI must work from the packed content alone.
+        run: |
+          mkdir -p /tmp/claudex-packed
+          tar -xzf "${{ steps.pack.outputs.tarball }}" -C /tmp/claudex-packed
+          cd /tmp/claudex-packed/package
+          test -f .claude-plugin/plugin.json
+          for skill in setup login config doctor status update uninstall; do
+            test -f "skills/$skill/SKILL.md"
+          done
+          test -x bin/claudex-pluginctl
+          node dist/src/cli.js version
+          node dist/src/cli.js help > /dev/null
+      - name: Attest build provenance
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: ${{ steps.pack.outputs.tarball }}
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release-notes.mjs > release-notes.md
+          gh release create "${{ github.ref_name }}" \
+            --title "Claudex ${{ github.ref_name }}" \
+            --notes-file release-notes.md \
+            "${{ steps.pack.outputs.tarball }}" SHA256SUMS.txt sbom.cdx.json
