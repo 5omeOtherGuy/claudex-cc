@@ -98,6 +98,34 @@ test("device login succeeds after persistence and an authenticated probe", async
   assert.ok(progress.some((line) => line.includes("ABCD-1234")));
 });
 
+test("browser login exposes only safe progress to the in-product workflow", async () => {
+  const paths = await makePaths();
+  await installFakeGateway(paths);
+  const progress: string[] = [];
+  const authorizationUrl = "https://auth.example.invalid/authorize?state=private-state";
+
+  const result = await runLoginCommand({
+    paths,
+    config: DEFAULT_CONFIG,
+    mode: "browser",
+    onProgress: (line) => progress.push(line),
+    driverFactory: () =>
+      driverFrom(
+        [
+          { kind: "browser_prompt", authorizationUrl, state: "private-state" },
+          { kind: "callback", state: "private-state" },
+          { kind: "persisted" },
+        ],
+        () => persistFakeCredential(paths),
+      ),
+    probe: async () => ({ ok: true }),
+  });
+
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(progress.join("\n"), /browser|callback|verified/i);
+  assert.doesNotMatch(progress.join("\n"), /private-state|auth\.example/);
+});
+
 test("login writes the gateway config the login process reads", async () => {
   const paths = await makePaths();
   await installFakeGateway(paths);

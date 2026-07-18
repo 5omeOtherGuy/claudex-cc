@@ -8,7 +8,12 @@ import { renderDoctorReport, runDoctor } from "./commands/doctor.js";
 import { runLaunchCommand } from "./commands/launch.js";
 import { runLoginCommand } from "./commands/login.js";
 import { renderRollbackReport, runRollbackCommand } from "./commands/rollback.js";
-import { buildSetupPlan, renderSetupReport, runSetup } from "./commands/setup.js";
+import {
+  buildSetupPlan,
+  renderSetupReport,
+  runSetup,
+  runSetupPreflight,
+} from "./commands/setup.js";
 import { collectStatus, renderStatusReport } from "./commands/status.js";
 import { renderUninstallReport, runUninstall } from "./commands/uninstall.js";
 import { renderUpdateReport, runUpdateCommand } from "./commands/update.js";
@@ -27,8 +32,9 @@ Usage:
 Commands:
   setup [--json]             Install the pinned gateway, service, and launcher
   setup --plan               Print the machine-readable guided-setup contract
-  login [--browser]          Authenticate Codex (device flow by default);
-                             run this in an interactive terminal
+  setup --preflight          Check setup blockers and warnings without changes
+  login [--browser]          Authenticate Codex; device flow is the terminal
+                             default and browser flow supports plugin-guided login
   launch [args...]           Start Claude Code through the local gateway
   config show [--json]       Print the effective configuration (redacted)
   config set <key> <value>   Validate and persist one setting
@@ -104,6 +110,19 @@ async function run(argv: readonly string[]): Promise<number> {
     }
     case "setup": {
       const paths = resolveCurrentPlatformPaths();
+      const preflightOptions = {
+        paths,
+        platform: process.platform,
+        arch: process.arch,
+        binDir: resolveCurrentLauncherBinDir(),
+        pathValue: process.env.PATH,
+        claudeSettingsFile: join(homedir(), ".claude", "settings.json"),
+      };
+      if (args.includes("--preflight")) {
+        const preflight = await runSetupPreflight(preflightOptions);
+        writeJson(preflight);
+        return preflight.ok ? 0 : 1;
+      }
       if (args.includes("--plan")) {
         const loaded = await loadConfig(paths);
         if (!loaded.ok) {
@@ -114,10 +133,7 @@ async function run(argv: readonly string[]): Promise<number> {
         return 0;
       }
       const report = await runSetup({
-        paths,
-        platform: process.platform,
-        arch: process.arch,
-        binDir: resolveCurrentLauncherBinDir(),
+        ...preflightOptions,
         managerEntry: fileURLToPath(import.meta.url),
         unitDir: join(homedir(), ".config", "systemd", "user"),
         agentDir: join(homedir(), "Library", "LaunchAgents"),

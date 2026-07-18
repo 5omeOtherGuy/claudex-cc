@@ -48,9 +48,9 @@ claude --plugin-dir "$(pwd)"
 Then, inside Claude Code, run `/claudex:setup` — it installs the pinned,
 checksum-verified gateway, the persistent service where available, and the
 stable `claudex` launcher (`~/.local/bin` on Linux/macOS,
-`%LOCALAPPDATA%\claudex\bin` on Windows; add it to `PATH` once). Authenticate
-with `claudex-pluginctl login` in your own terminal (device flow by default),
-then start sessions through `claudex` instead of `claude`.
+`%LOCALAPPDATA%\claudex\bin` on Windows; add it to `PATH` once). Setup opens the
+browser OAuth flow itself and verifies authentication before directing you to a
+new `claudex` session.
 
 ## User experience
 

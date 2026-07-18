@@ -283,6 +283,8 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
     add({ name: "live-inference", status: "skip", detail: "gateway unavailable" });
   } else {
     let status: CheckStatus = "fail";
+    let detail = "bounded live request failed";
+    let remediation = "Check gateway connectivity and retry the compatibility check.";
     try {
       // Bounded on purpose: one request, minimal output budget.
       const response = await fetchFn(`${base}/v1/messages`, {
@@ -295,14 +297,28 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorReport> {
         }),
       });
       status = response.status === 200 ? "pass" : "fail";
+      if (status === "pass") {
+        detail = "bounded live request succeeded";
+        remediation = "";
+      } else {
+        detail = `bounded live request returned HTTP ${response.status}`;
+        remediation =
+          response.status === 400
+            ? "The pinned gateway request contract is incompatible with the upstream API. Update Claudex or report a compatibility failure; re-authentication will not fix it."
+            : response.status === 401 || response.status === 403
+              ? "Refresh authentication and confirm that the account has Codex access."
+              : response.status >= 500
+                ? "The gateway or upstream service failed; retry, then run update if the failure persists."
+                : "Run doctor again and report the HTTP status if the failure persists.";
+      }
     } catch {
       status = "fail";
     }
     add({
       name: "live-inference",
       status,
-      detail: status === "pass" ? "bounded live request succeeded" : "bounded live request failed",
-      remediation: status === "pass" ? undefined : "Run login again or check entitlements.",
+      detail,
+      remediation: status === "pass" ? undefined : remediation,
     });
   }
 

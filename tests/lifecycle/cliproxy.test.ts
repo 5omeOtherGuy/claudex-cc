@@ -61,7 +61,6 @@ test("a request policy renders supported retries, routing, streaming, and reason
       sessionAffinity: true,
       streamingKeepaliveSeconds: 15,
       streamingBootstrapRetries: 1,
-      maxOutputTokens: 32_768,
       reasoningEffort: "xhigh",
       remoteModelCatalog: true,
     },

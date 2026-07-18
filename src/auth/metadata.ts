@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { chmod, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AuthValidator } from "./orchestrator.js";
 
@@ -15,13 +15,25 @@ export interface CredentialMetadata {
 
 async function credentialFiles(credentialsDir: string): Promise<string[]> {
   try {
-    const entries = await readdir(credentialsDir);
+    const entries = await readdir(credentialsDir, { withFileTypes: true });
     return entries
-      .filter((name) => name.endsWith(".json"))
-      .map((name) => join(credentialsDir, name));
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => join(credentialsDir, entry.name));
   } catch {
     return [];
   }
+}
+
+async function secureCredentialPermissions(credentialsDir: string): Promise<void> {
+  if (process.platform === "win32") {
+    return;
+  }
+  const files = await credentialFiles(credentialsDir);
+  if (files.length === 0) {
+    return;
+  }
+  await chmod(credentialsDir, 0o700);
+  await Promise.all(files.map((file) => chmod(file, 0o600)));
 }
 
 function isOwnerOnly(mode: number): boolean {
@@ -70,6 +82,14 @@ export function createFileValidator(
 ): AuthValidator {
   return {
     checkPersisted: async () => {
+      try {
+        await secureCredentialPermissions(credentialsDir);
+      } catch {
+        return {
+          ok: false,
+          detail: "Claudex could not enforce owner-only credential permissions.",
+        };
+      }
       const metadata = await inspectCredentialMetadata(credentialsDir);
       if (!metadata.present) {
         return { ok: false, detail: `No credential file found in ${credentialsDir}.` };

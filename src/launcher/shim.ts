@@ -43,6 +43,27 @@ function marker(platform: string): string {
   return platform === "win32" ? CMD_MARKER : POSIX_MARKER;
 }
 
+export interface InspectShimOptions {
+  readonly binDir: string;
+  readonly platform: string;
+}
+
+export type ShimInspection =
+  | { readonly status: "absent"; readonly file: string }
+  | { readonly status: "managed"; readonly file: string }
+  | { readonly status: "foreign"; readonly file: string };
+
+export async function inspectShim(options: InspectShimOptions): Promise<ShimInspection> {
+  const file = join(options.binDir, shimFileName(options.platform));
+  const existing = await readFile(file, "utf8").catch(() => undefined);
+  if (existing === undefined) {
+    return { status: "absent", file };
+  }
+  return existing.includes(marker(options.platform))
+    ? { status: "managed", file }
+    : { status: "foreign", file };
+}
+
 export interface InstallShimOptions {
   readonly binDir: string;
   readonly platform: string;
@@ -50,9 +71,9 @@ export interface InstallShimOptions {
 }
 
 export async function installShim(options: InstallShimOptions): Promise<ShimResult> {
-  const file = join(options.binDir, shimFileName(options.platform));
-  const existing = await readFile(file, "utf8").catch(() => undefined);
-  if (existing !== undefined && !existing.includes(marker(options.platform))) {
+  const inspection = await inspectShim(options);
+  const file = inspection.file;
+  if (inspection.status === "foreign") {
     return {
       ok: false,
       error: `${file} exists but is not managed by Claudex; refusing to overwrite it. Remove or rename the conflicting launcher first.`,

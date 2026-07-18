@@ -17,9 +17,9 @@ The readiness ladder fails closed in order:
 
 - `gateway_missing` — no activated gateway. Run `/claudex:setup` (or
   `claudex-pluginctl setup`).
-- `not_logged_in` — no Codex credentials. Run `claudex-pluginctl login` in
-  an interactive terminal; success requires both persisted owner-only
-  credentials and an authenticated probe.
+- `not_logged_in` — no Codex credentials. Run `/claudex:login`; it opens browser
+  sign-in, secures the persisted credential, and verifies an authenticated
+  request. Use the control CLI's device flow only as a headless fallback.
 - `gateway_unhealthy` (persistent mode) — the service did not answer.
   Check `systemctl --user status claudex-gateway` (Linux) or
   `launchctl print gui/$UID/com.claudex.gateway` (macOS), then run doctor.

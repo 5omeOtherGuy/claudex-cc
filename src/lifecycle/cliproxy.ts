@@ -81,7 +81,6 @@ export function renderSessionConfig(
       5,
       "advanced.streamingBootstrapRetries",
     );
-    assertBoundedInteger(policy.maxOutputTokens, 1, 10_000_000, "context.maxOutputTokens");
     if (!EFFORT_VALUES.has(policy.reasoningEffort)) {
       throw new Error("Refusing to render a gateway config with an unknown reasoning effort.");
     }
@@ -95,15 +94,14 @@ export function renderSessionConfig(
       "streaming:",
       `  keepalive-seconds: ${policy.streamingKeepaliveSeconds}`,
       `  bootstrap-retries: ${policy.streamingBootstrapRetries}`,
-      // Proxy-side output cap and reasoning effort, enforced regardless of
-      // what the client requests (upstream payload.override semantics).
+      // The pinned Codex backend accepts reasoning.effort but rejects
+      // max_output_tokens, so output headroom remains a local context budget.
       "payload:",
       "  override:",
       "    - models:",
       '        - name: "*"',
       '          protocol: "codex"',
       "      params:",
-      `        "max_output_tokens": ${policy.maxOutputTokens}`,
       `        "reasoning.effort": "${policy.reasoningEffort}"`,
     );
   }

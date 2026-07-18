@@ -19,14 +19,16 @@ manual proxy administration.
 - Normal `claude` sessions remain unchanged.
 - Linux supports persistent and session modes; macOS supports LaunchAgent and
   session modes; Windows supports session mode.
-- Device OAuth is the default, with a safe browser/manual fallback.
+- In-product browser OAuth is the default; device OAuth remains the safe
+  terminal fallback for headless and remote sessions.
 - Gateway artifacts are pinned, checksum-verified, staged, and rollback-capable.
 - Configuration is validated and written atomically; credentials and logs follow
   the documented security model.
 - Plugin skills provide setup, login, config, status, doctor, update, and
   uninstall workflows backed by one deterministic control CLI.
-- Compatibility presets, context headroom, proxy-side output caps, and bounded
-  retries are implemented and documented.
+- Compatibility presets, context and response headroom, and bounded retries are
+  implemented and documented; a proxy-side output cap remains deferred until
+  the pinned gateway has a compatibility-tested mechanism.
 - Deterministic CI, cross-platform smoke tests, security scanning, release
   artifacts, SBOM/checksums, and a protected live compatibility workflow exist.
 - Installation, troubleshooting, security, contribution, compatibility, and
@@ -84,8 +86,10 @@ without exposing callback material.
 
 **Definition of done:**
 
-- Device flow is the default and displays bounded, actionable progress.
-- Browser/manual flow permits one active PKCE attempt and validates state.
+- Browser flow is the in-product default, reports only bounded redacted progress,
+  and validates callback state for one active attempt.
+- Device flow remains available as an interactive-terminal fallback for
+  headless sessions.
 - OAuth success requires persistence plus an authenticated validation request.
 - Credential metadata is safe to inspect; token contents never enter diagnostics.
 - Timeout, denial, state mismatch, entitlement, and refresh failures have tests
@@ -181,7 +185,8 @@ and beta compatibility.
 
 - Compatibility, Balanced, and Maximum Reasoning presets are implemented.
 - Context threshold reserves measured output/tool/reasoning headroom.
-- Proxy-side maximum output is enforced and verified.
+- Response headroom is enforced locally; proxy-side output enforcement is added
+  only after a supported mechanism passes live compatibility testing.
 - Retry policy is bounded and distinguishes permanent failures.
 - Experimental betas, fine-grained tool streaming, discovery, and session
   affinity are explicit options with documented consequences.

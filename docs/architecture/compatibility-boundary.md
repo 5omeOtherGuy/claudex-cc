@@ -32,16 +32,17 @@ Claudex renders these validated configuration values into the gateway
 configuration of the pinned release:
 
 - **Presets** — `config preset compatibility | balanced | max-reasoning`
-  bundle reasoning effort, context thresholds, output cap, and retry policy.
-  Presets never touch models, runtime mode, or advanced options.
+  bundle reasoning effort, context thresholds, response headroom, and retry
+  policy. Presets never touch models, runtime mode, or advanced options.
 - **Context headroom** — validation enforces
   `compactAt + maxOutputTokens + 8192 (tool/reasoning reserve) < advertisedWindow`,
   so compaction always fires with room for a full response plus tool results
   and reasoning traces.
-- **Proxy-side output cap** — `context.maxOutputTokens` is enforced by the
-  gateway itself through an upstream `payload.override` rule
-  (`max_output_tokens` on the Codex protocol), together with
-  `reasoning.effort`. Clients cannot exceed the cap by asking for more.
+- **Response headroom** — `context.maxOutputTokens` reserves local context budget
+  for schema validation and compaction planning. Claudex does not inject
+  `max_output_tokens` into Codex requests: the pinned subscription backend
+  rejects that upstream parameter. A proxy-side cap remains deferred until the
+  pinned gateway exposes a compatibility-tested mechanism.
 - **Bounded retries** — `requests.retries` maps to the gateway's
   `request-retry`, which retries only transient upstream failures
   (403/408/500/502/503/504). Permanent failures (validation and
