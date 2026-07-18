@@ -15,6 +15,14 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Match the Node typings to engines.node >=22.19.0: allow 22.19.x patch
+      # updates, but do not let Dependabot widen to newer Node minors or majors
+      # where TypeScript could accept APIs missing from the runtime floor.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   - package-ecosystem: github-actions
     directory: "/"
