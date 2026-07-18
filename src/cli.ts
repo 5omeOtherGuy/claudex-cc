@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-import { createOfflineDoctorReport } from "./commands/doctor.js";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { runConfigCommand } from "./commands/config.js";
+import { renderDoctorReport, runDoctor } from "./commands/doctor.js";
+import { collectStatus, renderStatusReport } from "./commands/status.js";
+import { ensurePersistentSecret } from "./launcher/launch.js";
+import { defaultHealthProbe } from "./lifecycle/cliproxy.js";
+import { resolveCurrentPlatformPaths } from "./platform/paths.js";
 import { redactSecrets } from "./security/redaction.js";
 import { VERSION } from "./version.js";
 
@@ -10,13 +17,17 @@ Usage:
   claudex-pluginctl <command> [options]
 
 Commands:
-  doctor --offline [--json]  Run safe local scaffold diagnostics
-  status [--json]            Show current implementation status
+  config show [--json]       Print the effective configuration (redacted)
+  config set <key> <value>   Validate and persist one setting
+  config reset               Restore defaults, keeping a backup
+  status [--json]            Show manager, gateway, auth, and launch readiness
+  doctor [--offline] [--json] [--allow-live-inference]
+                             Run redacted diagnostics with remediations
   version                    Print the Claudex version
   help                       Show this help
 
 Planned commands:
-  setup, login, config, update, uninstall, launch
+  setup, login, update, uninstall, launch
 `;
 
 function write(value: string): void {
@@ -27,23 +38,7 @@ function writeJson(value: unknown): void {
   write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-function printStatus(json: boolean): void {
-  const status = {
-    status: "scaffold",
-    version: VERSION,
-    usable: false,
-    nextMilestone: "v0.1.0 Linux manager MVP",
-  } as const;
-
-  if (json) {
-    writeJson(status);
-    return;
-  }
-
-  write(`Claudex ${VERSION}: repository scaffold only; runtime setup is not implemented.\n`);
-}
-
-function run(argv: readonly string[]): number {
+async function run(argv: readonly string[]): Promise<number> {
   const [command = "help", ...args] = argv;
   const json = args.includes("--json");
 
@@ -58,28 +53,40 @@ function run(argv: readonly string[]): number {
     case "-v":
       write(`${VERSION}\n`);
       return 0;
-    case "status":
-      printStatus(json);
-      return 0;
-    case "doctor": {
-      if (!args.includes("--offline")) {
-        write("doctor currently requires --offline; live checks are not implemented.\n");
-        return 2;
-      }
-      const report = createOfflineDoctorReport();
+    case "status": {
+      const paths = resolveCurrentPlatformPaths();
+      const report = await collectStatus({ paths, probe: defaultHealthProbe });
       if (json) {
         writeJson(report);
       } else {
-        write(`Claudex ${report.claudexVersion} offline doctor: ${report.status}\n`);
-        write(`Platform: ${report.platform}/${report.architecture} (${report.osRelease})\n`);
-        write(`Pinned gateway: CLIProxyAPI ${report.gatewayVersion}\n`);
-        write(`${report.note}\n`);
+        write(renderStatusReport(report));
       }
-      return 0;
+      return report.launch.ready ? 0 : 1;
+    }
+    case "doctor": {
+      const paths = resolveCurrentPlatformPaths();
+      const offline = args.includes("--offline");
+      const report = await runDoctor({
+        paths,
+        offline,
+        allowLiveInference: args.includes("--allow-live-inference"),
+        claudeSettingsFile: join(homedir(), ".claude", "settings.json"),
+        clientSecret: offline ? undefined : await ensurePersistentSecret(paths),
+      });
+      if (json) {
+        writeJson(report);
+      } else {
+        write(renderDoctorReport(report));
+      }
+      return report.overall === "fail" ? 1 : 0;
+    }
+    case "config": {
+      const result = await runConfigCommand(args, resolveCurrentPlatformPaths());
+      write(result.output);
+      return result.exitCode;
     }
     case "setup":
     case "login":
-    case "config":
     case "update":
     case "uninstall":
     case "launch":
@@ -91,4 +98,4 @@ function run(argv: readonly string[]): number {
   }
 }
 
-process.exitCode = run(process.argv.slice(2));
+process.exitCode = await run(process.argv.slice(2));

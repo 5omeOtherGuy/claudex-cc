@@ -1,4 +1,7 @@
+import { CONFIG_VERSION } from "./schema.js";
+
 export interface ClaudexConfig {
+  readonly configVersion: number;
   readonly runtime: {
     readonly mode: "persistent" | "session";
     readonly host: string;
@@ -25,6 +28,7 @@ export interface ClaudexConfig {
 }
 
 export const DEFAULT_CONFIG: ClaudexConfig = {
+  configVersion: CONFIG_VERSION,
   runtime: {
     mode: "persistent",
     host: "127.0.0.1",
