@@ -1,12 +1,14 @@
 # Claudex
 
-Claudex is an early-stage Claude Code plugin and launcher that will manage a
-secure, localhost-only gateway for running Codex subscription models in Claude
-Code.
+Claudex is a Claude Code plugin and launcher that manages a secure,
+localhost-only gateway for running Codex subscription models in Claude Code:
+guided setup, device/browser OAuth, per-session or persistent gateway
+lifecycles, staged checksum-verified updates with rollback, and redacted
+diagnostics — all driven by one deterministic control CLI.
 
 > [!IMPORTANT]
-> This repository currently contains the public architecture and implementation
-> scaffold. The installer, OAuth flow, and managed gateway are not usable yet.
+> Claudex is unofficial and pre-release (no tagged release yet). See the
+> [security and support boundary](#security-and-support-boundary) below.
 
 ## Why this architecture
 
@@ -19,9 +21,9 @@ session's model transport. Claudex therefore has two cooperating layers:
 2. a stable pre-launch manager that starts a pinned Anthropic-compatible gateway
    and supplies the required environment before Claude Code starts.
 
-The initial gateway implementation will be a checksum-verified, pinned
+The gateway implementation is a checksum-verified, pinned
 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) release. Building a
-new protocol translator is explicitly outside the MVP.
+new protocol translator is explicitly out of scope.
 
 ```text
 Claude Code plugin ──manages──▶ stable claudex launcher
@@ -33,21 +35,52 @@ Claude Code plugin ──manages──▶ stable claudex launcher
                              Codex OAuth backend
 ```
 
-## Planned user experience
+## Installation
 
-```text
-/claudex:setup
-/claudex:login
-/claudex:config
-/claudex:doctor
-/claudex:status
-/claudex:update
-/claudex:uninstall
+Until the first marketplace release, install from a packed checkout:
+
+```bash
+git clone https://github.com/5omeOtherGuy/claudex-cc.git
+cd claudex-cc && npm ci && npm run build
+claude --plugin-dir "$(pwd)"
 ```
 
-After setup, `claudex` will validate the local service, set the gateway and model
-environment for that process, and launch Claude Code. Normal `claude` sessions
-remain isolated.
+Then, inside Claude Code, run `/claudex:setup` — it installs the pinned,
+checksum-verified gateway, the persistent service where available, and the
+stable `claudex` launcher (`~/.local/bin` on Linux/macOS,
+`%LOCALAPPDATA%\claudex\bin` on Windows; add it to `PATH` once). Authenticate
+with `claudex-pluginctl login` in your own terminal (device flow by default),
+then start sessions through `claudex` instead of `claude`.
+
+## User experience
+
+```text
+/claudex:setup      guided install and configuration menus
+/claudex:login      device/browser Codex OAuth (runs in your terminal)
+/claudex:config     presets and validated settings
+/claudex:status     gateway, auth, drift, and session guidance
+/claudex:doctor     redacted diagnostics with remediations
+/claudex:update     staged, smoke-gated gateway updates with rollback
+/claudex:uninstall  removal with an explicit credential decision
+```
+
+`claudex` validates the local gateway (readiness ladder: installed →
+logged in → healthy), sets the gateway and model environment for that
+process only, and launches Claude Code. Normal `claude` sessions remain
+unchanged, and a running session never switches providers — only new
+`claudex` launches use the gateway.
+
+Platform support: Linux (persistent systemd user service + session mode),
+macOS (LaunchAgent + session mode), Windows (session mode). Details:
+[`docs/platforms/macos.md`](docs/platforms/macos.md),
+[`docs/platforms/windows.md`](docs/platforms/windows.md).
+
+## Troubleshooting
+
+Start with `claudex-pluginctl doctor --offline` (add `status` for launch
+readiness and drift). See [`docs/troubleshooting.md`](docs/troubleshooting.md)
+for the common failure modes and their remediations; every error message in
+the CLI names its remediation, and diagnostics are redacted by design.
 
 ## Technology stack
 
@@ -56,7 +89,7 @@ remain isolated.
 - Node built-ins for filesystem, process, networking, hashing, and tests
 - Biome for formatting and linting
 - GitHub Actions on Linux, macOS, and Windows
-- a pinned upstream CLIProxyAPI binary for the initial gateway
+- a pinned upstream CLIProxyAPI binary as the gateway
 
 See [`docs/technology-stack.md`](docs/technology-stack.md) and
 [`docs/architecture/overview.md`](docs/architecture/overview.md).
