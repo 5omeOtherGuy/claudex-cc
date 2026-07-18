@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import { runConfigCommand } from "./commands/config.js";
 import { createOfflineDoctorReport } from "./commands/doctor.js";
+import { resolveCurrentPlatformPaths } from "./platform/paths.js";
 import { redactSecrets } from "./security/redaction.js";
 import { VERSION } from "./version.js";
 
@@ -10,13 +12,16 @@ Usage:
   claudex-pluginctl <command> [options]
 
 Commands:
+  config show [--json]       Print the effective configuration (redacted)
+  config set <key> <value>   Validate and persist one setting
+  config reset               Restore defaults, keeping a backup
   doctor --offline [--json]  Run safe local scaffold diagnostics
   status [--json]            Show current implementation status
   version                    Print the Claudex version
   help                       Show this help
 
 Planned commands:
-  setup, login, config, update, uninstall, launch
+  setup, login, update, uninstall, launch
 `;
 
 function write(value: string): void {
@@ -43,7 +48,7 @@ function printStatus(json: boolean): void {
   write(`Claudex ${VERSION}: repository scaffold only; runtime setup is not implemented.\n`);
 }
 
-function run(argv: readonly string[]): number {
+async function run(argv: readonly string[]): Promise<number> {
   const [command = "help", ...args] = argv;
   const json = args.includes("--json");
 
@@ -77,9 +82,13 @@ function run(argv: readonly string[]): number {
       }
       return 0;
     }
+    case "config": {
+      const result = await runConfigCommand(args, resolveCurrentPlatformPaths());
+      write(result.output);
+      return result.exitCode;
+    }
     case "setup":
     case "login":
-    case "config":
     case "update":
     case "uninstall":
     case "launch":
@@ -91,4 +100,4 @@ function run(argv: readonly string[]): number {
   }
 }
 
-process.exitCode = run(process.argv.slice(2));
+process.exitCode = await run(process.argv.slice(2));
