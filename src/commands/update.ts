@@ -7,9 +7,15 @@ import {
 } from "../gateway/activate.js";
 import { type Downloader, type Extractor, installGatewayVersion } from "../gateway/install.js";
 import { GATEWAY_MANIFEST, type GatewayManifest, selectArtifact } from "../gateway/manifest.js";
+import { runGatewaySmoke, type SmokeReport } from "../gateway/smoke.js";
 import { ensurePersistentSecret } from "../launcher/launch.js";
-import { defaultHealthProbe, writePersistentConfig } from "../lifecycle/cliproxy.js";
+import {
+  createCliproxyLauncher,
+  defaultHealthProbe,
+  writePersistentConfig,
+} from "../lifecycle/cliproxy.js";
 import type { HealthProbe } from "../lifecycle/session.js";
+import { startSessionGateway } from "../lifecycle/session.js";
 import {
   createSystemctlRunner,
   installService,
@@ -57,6 +63,52 @@ export interface UpdateOptions {
   readonly probe?: HealthProbe;
   /** Bound for the post-restart health wait; tests shorten it. */
   readonly healthTimeoutMs?: number;
+  /** Stages the candidate on a temporary endpoint and smoke-tests it. */
+  readonly smokeRunner?: SmokeRunner;
+  /** Includes the billed streaming/tool smokes; requires explicit consent. */
+  readonly allowLiveInference?: boolean;
+}
+
+export type SmokeRunner = (
+  candidateBinaryFile: string,
+  config: ClaudexConfig,
+) => Promise<SmokeReport>;
+
+/**
+ * Default staging: boot the candidate binary on an ephemeral loopback port
+ * with the current configuration and run the smoke suite against it, then
+ * stop it. The active gateway is untouched during staging.
+ */
+function createDefaultSmokeRunner(
+  options: Pick<UpdateOptions, "paths" | "allowLiveInference">,
+): SmokeRunner {
+  return async (candidateBinaryFile, config) => {
+    const session = await startSessionGateway({
+      paths: options.paths,
+      config,
+      binaryFile: candidateBinaryFile,
+      launcher: createCliproxyLauncher(),
+      probe: defaultHealthProbe,
+      port: 0,
+    });
+    if (!session.ok) {
+      return {
+        ok: false,
+        checks: [{ name: "health", status: "fail", detail: session.error }],
+      };
+    }
+    try {
+      return await runGatewaySmoke({
+        target: session.session,
+        models: config.models,
+        ...(options.allowLiveInference === undefined
+          ? {}
+          : { allowLiveInference: options.allowLiveInference }),
+      });
+    } finally {
+      await session.session.stop();
+    }
+  };
 }
 
 function buildPlan(
@@ -189,6 +241,31 @@ export async function runUpdateCommand(options: UpdateOptions): Promise<UpdateRe
     name: "install",
     status: "ok",
     detail: `Installed and checksum-verified gateway ${installed.version} alongside the current version.`,
+  });
+
+  // Stage the candidate on a temporary endpoint; smoke results gate activation.
+  const smokeRunner = options.smokeRunner ?? createDefaultSmokeRunner(options);
+  const smoke = await smokeRunner(installed.binaryFile, config);
+  for (const check of smoke.checks) {
+    steps.push({
+      name: `stage-${check.name}`,
+      status: check.status === "pass" ? "ok" : check.status === "skip" ? "skipped" : "failed",
+      detail: check.detail,
+    });
+  }
+  if (!smoke.ok) {
+    steps.push({
+      name: "stage",
+      status: "failed",
+      detail:
+        "The staged candidate failed its smoke checks; the previously active gateway was not changed.",
+    });
+    return { ok: false, plan, applied: false, steps };
+  }
+  steps.push({
+    name: "stage",
+    status: "ok",
+    detail: "The staged candidate passed its smoke checks.",
   });
 
   const selection = selectArtifact(manifest, options.platform, options.arch);

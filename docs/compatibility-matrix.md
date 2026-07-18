@@ -2,7 +2,7 @@
 
 | Claude Code | Claudex | Gateway | Models | Status | Notes |
 |---|---|---|---|---|---|
-| 2.1.214 | 0.1.0 scaffold | CLIProxyAPI 7.2.86 | Sol/Terra/Luna catalog | Research baseline | Runtime manager not implemented |
+| 2.1.214 | 0.1.0 (in development) | CLIProxyAPI 7.2.86 | Sol/Terra/Luna catalog | Staged verification implemented | Live promotion run pending; deterministic smoke gates (health, inventory, token count) verified |
 
 ## Promotion gate
 

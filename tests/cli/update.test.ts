@@ -12,6 +12,7 @@ import {
 import { getActiveGateway } from "../../src/gateway/activate.js";
 import type { Downloader, Extractor } from "../../src/gateway/install.js";
 import type { GatewayManifest } from "../../src/gateway/manifest.js";
+import type { SmokeReport } from "../../src/gateway/smoke.js";
 import type { SystemctlRunner } from "../../src/lifecycle/systemd.js";
 import type { ClaudexPaths } from "../../src/platform/paths.js";
 
@@ -83,6 +84,10 @@ async function makeFixture(overrides?: Partial<UpdateOptions>): Promise<Fixture>
       extractor,
       runner,
       probe: async () => true,
+      smokeRunner: async (): Promise<SmokeReport> => ({
+        ok: true,
+        checks: [{ name: "health", status: "pass", detail: "staged gateway healthy" }],
+      }),
       ...overrides,
     },
   };
@@ -205,4 +210,67 @@ test("an unhealthy updated gateway rolls back to the previous version", skipOnWi
   const unit = await readFile(join(fixture.unitDir, "claudex-gateway.service"), "utf8");
   assert.match(unit, /versions\/7\.2\.86/, "the unit points back at the previous binary");
   assert.match(renderUpdateReport(report), /previous gateway version was reactivated/);
+});
+
+test("a failing staged smoke gates activation and keeps everything recoverable", async () => {
+  const fixture = await makeFixture({
+    smokeRunner: async (): Promise<SmokeReport> => ({
+      ok: false,
+      checks: [
+        { name: "health", status: "pass", detail: "staged gateway healthy" },
+        { name: "model-inventory", status: "fail", detail: "Configured model(s) missing: a." },
+      ],
+    }),
+  });
+  await installCurrentGateway(fixture.paths);
+  await writeConfig(fixture.paths, "session");
+  const before = await readFile(fixture.paths.configFile, "utf8");
+
+  const report = await runUpdateCommand(fixture.options);
+  assert.equal(report.ok, false);
+  assert.equal(report.applied, false);
+  const stage = report.steps.find((step) => step.name === "stage");
+  assert.equal(stage?.status, "failed");
+  assert.equal(
+    report.steps.some((step) => step.name === "activate"),
+    false,
+    "activation must never run after a failed smoke",
+  );
+  assert.equal((await getActiveGateway(fixture.paths))?.version, "7.2.86");
+  assert.equal(await readFile(fixture.paths.configFile, "utf8"), before, "config is untouched");
+});
+
+test("the candidate binary passed to the smoke runner is the staged one", async () => {
+  let stagedBinary = "";
+  const fixture = await makeFixture({
+    smokeRunner: async (binaryFile): Promise<SmokeReport> => {
+      stagedBinary = binaryFile;
+      return { ok: true, checks: [] };
+    },
+  });
+  await installCurrentGateway(fixture.paths);
+  await writeConfig(fixture.paths, "session");
+
+  await runUpdateCommand(fixture.options);
+  assert.match(stagedBinary, /versions[\\/]7\.3\.0[\\/]cli-proxy-api$/);
+});
+
+test("skipped consent-gated smokes do not block activation", async () => {
+  const fixture = await makeFixture({
+    smokeRunner: async (): Promise<SmokeReport> => ({
+      ok: true,
+      checks: [
+        { name: "health", status: "pass", detail: "ok" },
+        { name: "stream", status: "skip", detail: "requires --allow-live-inference" },
+      ],
+    }),
+  });
+  await installCurrentGateway(fixture.paths);
+  await writeConfig(fixture.paths, "session");
+
+  const report = await runUpdateCommand(fixture.options);
+  assert.equal(report.ok, true, JSON.stringify(report.steps, null, 2));
+  assert.equal(report.applied, true);
+  const skipped = report.steps.find((step) => step.name === "stage-stream");
+  assert.equal(skipped?.status, "skipped");
 });
