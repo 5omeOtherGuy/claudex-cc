@@ -226,7 +226,6 @@ test("injection-shaped paths cannot be embedded into generated files", async () 
   assert.throws(
     () =>
       renderSessionConfig({
-        binaryFile: "/x/bin",
         host: "127.0.0.1",
         port: 1,
         clientSecret: "a".repeat(48),
@@ -247,7 +246,6 @@ test("spaced but benign paths still render into generated files", async () => {
   );
 
   const rendered = renderSessionConfig({
-    binaryFile: "/x/bin",
     host: "127.0.0.1",
     port: 1,
     clientSecret: "a".repeat(48),
