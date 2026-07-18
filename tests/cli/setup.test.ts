@@ -8,6 +8,7 @@ import {
   buildSetupPlan,
   renderSetupReport,
   runSetup,
+  runSetupPreflight,
   type SetupOptions,
 } from "../../src/commands/setup.js";
 import { DEFAULT_CONFIG } from "../../src/config/defaults.js";
@@ -123,6 +124,35 @@ test("setup plan defines a single global reasoning control", () => {
   assert.deepEqual(reasoning.appliesTo, ["main", "subagent", "fallback"]);
   assert.deepEqual(reasoning.values, ["low", "medium", "high", "xhigh", "max"]);
   assert.match(reasoning.question, /one global reasoning effort/i);
+});
+
+test("setup preflight reports deterministic blockers and warnings before installation", async () => {
+  const fixture = await makeFixture();
+  await mkdir(fixture.binDir, { recursive: true });
+  await writeFile(join(fixture.binDir, "claudex"), "#!/bin/sh\necho foreign\n", { mode: 0o755 });
+  await mkdir(fixture.paths.configDir, { recursive: true });
+  const claudeSettingsFile = join(fixture.paths.configDir, "claude-settings.json");
+  await writeFile(claudeSettingsFile, JSON.stringify({ model: "custom-model" }));
+
+  const report = await runSetupPreflight({
+    paths: fixture.paths,
+    platform: "linux",
+    arch: "x64",
+    binDir: fixture.binDir,
+    manifest: testManifest(),
+    pathValue: "/usr/bin",
+    claudeSettingsFile,
+  });
+  const checks = new Map(report.checks.map((check) => [check.name, check]));
+
+  assert.equal(report.ok, false);
+  assert.equal(checks.get("config")?.status, "pass");
+  assert.equal(checks.get("platform")?.status, "pass");
+  assert.equal(checks.get("launcher")?.status, "fail");
+  assert.match(checks.get("launcher")?.remediation ?? "", /back up|rename/i);
+  assert.equal(checks.get("launcher-path")?.status, "warn");
+  assert.equal(checks.get("claude-settings")?.status, "warn");
+  assert.match(checks.get("claude-settings")?.detail ?? "", /model/i);
 });
 
 async function writeConfigWithMode(
