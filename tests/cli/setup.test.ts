@@ -4,7 +4,13 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { renderSetupReport, runSetup, type SetupOptions } from "../../src/commands/setup.js";
+import {
+  buildSetupPlan,
+  renderSetupReport,
+  runSetup,
+  type SetupOptions,
+} from "../../src/commands/setup.js";
+import { DEFAULT_CONFIG } from "../../src/config/defaults.js";
 import { getActiveGateway } from "../../src/gateway/activate.js";
 import type { Downloader, Extractor } from "../../src/gateway/install.js";
 import type { GatewayManifest } from "../../src/gateway/manifest.js";
@@ -95,6 +101,29 @@ async function makeFixture(overrides?: Partial<SetupOptions>): Promise<Fixture> 
 // backslashes, which the embeddable-path guard rightly rejects. The service
 // path is Linux-only behavior, so persistent-mode setup runs are skipped there.
 const skipOnWindows = { skip: process.platform === "win32" };
+
+test("setup plan defines a single global reasoning control", () => {
+  const plan = buildSetupPlan(DEFAULT_CONFIG);
+
+  assert.equal(plan.version, 1);
+  assert.deepEqual(plan.current, {
+    runtimeMode: "persistent",
+    models: DEFAULT_CONFIG.models,
+    reasoningEffort: "medium",
+  });
+  assert.deepEqual(
+    plan.customization.map((question) => question.id),
+    ["runtime", "models", "reasoning"],
+  );
+
+  const reasoning = plan.customization.find((question) => question.id === "reasoning");
+  assert.ok(reasoning !== undefined && reasoning.id === "reasoning");
+  assert.equal(reasoning.key, "reasoning.effort");
+  assert.equal(reasoning.scope, "global");
+  assert.deepEqual(reasoning.appliesTo, ["main", "subagent", "fallback"]);
+  assert.deepEqual(reasoning.values, ["low", "medium", "high", "xhigh", "max"]);
+  assert.match(reasoning.question, /one global reasoning effort/i);
+});
 
 async function writeConfigWithMode(
   fixture: Fixture,
