@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -40,7 +40,7 @@ test("missing credentials report absent metadata", async () => {
   assert.equal(metadata.present, false);
 });
 
-test("group-readable credential files fail the persistence check", async (t) => {
+test("the persistence check normalizes credential permissions before validation", async (t) => {
   if (process.platform === "win32") {
     t.skip("POSIX permission bits are not meaningful on Windows");
     return;
@@ -48,12 +48,13 @@ test("group-readable credential files fail the persistence check", async (t) => 
   const dir = await makeCredentialsDir();
   const file = join(dir, "codex-fake.json");
   await writeFile(file, FAKE_CREDENTIAL, { mode: 0o600 });
-  await chmod(file, 0o644);
+  await chmod(dir, 0o775);
+  await chmod(file, 0o664);
 
   const validator = createFileValidator(dir, async () => ({ ok: true }));
-  const check = await validator.checkPersisted();
-  assert.equal(check.ok, false);
-  assert.ok(check.detail !== undefined && /permission|owner/i.test(check.detail));
+  assert.deepEqual(await validator.checkPersisted(), { ok: true });
+  assert.equal((await stat(dir)).mode & 0o777, 0o700);
+  assert.equal((await stat(file)).mode & 0o777, 0o600);
 });
 
 test("the file validator passes owner-only credentials and delegates the probe", async () => {

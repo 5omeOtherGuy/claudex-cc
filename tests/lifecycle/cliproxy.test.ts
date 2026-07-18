@@ -52,7 +52,7 @@ test("the written session config is owner-only", async (t) => {
   assert.equal((await stat(file)).mode & 0o777, 0o600);
 });
 
-test("a request policy renders retries, routing, streaming, and the output cap", async () => {
+test("a request policy renders supported retries, routing, streaming, and reasoning", async () => {
   const request = await makeRequest();
   const rendered = renderSessionConfig({
     ...request,
@@ -71,7 +71,7 @@ test("a request policy renders retries, routing, streaming, and the output cap",
   assert.match(rendered, /session-affinity: true/);
   assert.match(rendered, /keepalive-seconds: 15/);
   assert.match(rendered, /bootstrap-retries: 1/);
-  assert.match(rendered, /"max_output_tokens": 32768/);
+  assert.doesNotMatch(rendered, /max_output_tokens/);
   assert.match(rendered, /"reasoning\.effort": "xhigh"/);
   assert.match(rendered, /protocol: "codex"/);
 });

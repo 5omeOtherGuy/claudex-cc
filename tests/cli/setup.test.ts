@@ -150,6 +150,7 @@ test("setup installs config, gateway, service, and shim end to end", skipOnWindo
   assert.deepEqual(
     report.steps.map((step) => [step.name, step.status]),
     [
+      ["preflight", "ok"],
       ["config", "ok"],
       ["gateway-install", "ok"],
       ["gateway-activate", "ok"],
@@ -225,17 +226,20 @@ test("a config pinning a different gateway version fails closed", async () => {
   assert.match(install?.detail ?? "", /pins gateway 9\.9\.9/);
 });
 
-test("a foreign claudex launcher fails the shim step", async () => {
+test("a foreign claudex launcher fails before setup mutates installation state", async () => {
   const fixture = await makeFixture();
   await writeConfigWithMode(fixture, "session");
   await mkdir(fixture.binDir, { recursive: true });
   await writeFile(join(fixture.binDir, "claudex"), "#!/bin/sh\necho not ours\n", { mode: 0o755 });
+  const originalConfig = await readFile(fixture.paths.configFile, "utf8");
 
   const report = await runSetup(fixture.options);
   assert.equal(report.ok, false);
-  const shim = report.steps.find((step) => step.name === "launcher-shim");
-  assert.equal(shim?.status, "failed");
-  assert.match(shim?.detail ?? "", /not managed by Claudex/);
+  assert.equal(report.steps[0]?.name, "preflight");
+  assert.equal(report.steps[0]?.status, "failed");
+  assert.match(report.steps[0]?.detail ?? "", /not managed by Claudex/);
+  assert.equal(await getActiveGateway(fixture.paths), undefined);
+  assert.equal(await readFile(fixture.paths.configFile, "utf8"), originalConfig);
 });
 
 test("session-mode config skips the service and still succeeds", async () => {
