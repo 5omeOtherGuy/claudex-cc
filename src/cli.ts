@@ -15,7 +15,7 @@ import { renderUpdateReport, runUpdateCommand } from "./commands/update.js";
 import { loadConfig } from "./config/store.js";
 import { ensurePersistentSecret } from "./launcher/launch.js";
 import { defaultHealthProbe } from "./lifecycle/cliproxy.js";
-import { resolveCurrentPlatformPaths } from "./platform/paths.js";
+import { resolveCurrentLauncherBinDir, resolveCurrentPlatformPaths } from "./platform/paths.js";
 import { redactSecrets } from "./security/redaction.js";
 import { VERSION } from "./version.js";
 
@@ -107,7 +107,7 @@ async function run(argv: readonly string[]): Promise<number> {
         paths,
         platform: process.platform,
         arch: process.arch,
-        binDir: join(homedir(), ".local", "bin"),
+        binDir: resolveCurrentLauncherBinDir(),
         managerEntry: fileURLToPath(import.meta.url),
         unitDir: join(homedir(), ".config", "systemd", "user"),
         agentDir: join(homedir(), "Library", "LaunchAgents"),
@@ -192,7 +192,7 @@ async function run(argv: readonly string[]): Promise<number> {
       const report = await runUninstall({
         paths,
         platform: process.platform,
-        binDir: join(homedir(), ".local", "bin"),
+        binDir: resolveCurrentLauncherBinDir(),
         unitDir: join(homedir(), ".config", "systemd", "user"),
         agentDir: join(homedir(), "Library", "LaunchAgents"),
         removeCredentials: remove,

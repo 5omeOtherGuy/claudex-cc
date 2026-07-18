@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveClaudexPaths } from "../../src/platform/paths.js";
+import { resolveClaudexPaths, resolveLauncherBinDir } from "../../src/platform/paths.js";
 
 const HOME = "/home/user";
 
@@ -79,5 +79,30 @@ test("unsupported platforms fail closed", () => {
   assert.throws(
     () => resolveClaudexPaths({ platform: "sunos", homedir: HOME, env: {} }),
     /unsupported platform/i,
+  );
+});
+
+test("the launcher directory is ~/.local/bin on POSIX platforms", () => {
+  for (const platform of ["linux", "darwin"]) {
+    assert.equal(
+      resolveLauncherBinDir({ platform, homedir: HOME, env: {} }),
+      "/home/user/.local/bin",
+    );
+  }
+});
+
+test("the windows launcher directory lives under LOCALAPPDATA", () => {
+  assert.equal(
+    resolveLauncherBinDir({
+      platform: "win32",
+      homedir: "C:\\Users\\u",
+      env: { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" },
+    }),
+    "C:\\Users\\u\\AppData\\Local\\claudex\\bin",
+  );
+  assert.equal(
+    resolveLauncherBinDir({ platform: "win32", homedir: "C:\\Users\\u", env: {} }),
+    "C:\\Users\\u\\AppData\\Local\\claudex\\bin",
+    "falls back to the home-relative AppData path",
   );
 });
