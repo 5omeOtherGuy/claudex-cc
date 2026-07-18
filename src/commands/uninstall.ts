@@ -1,6 +1,8 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { removeShim } from "../launcher/shim.js";
+import type { LaunchctlRunner } from "../lifecycle/launchd.js";
+import { createLaunchctlRunner, removeLaunchAgent } from "../lifecycle/launchd.js";
 import {
   createSystemctlRunner,
   removeService,
@@ -32,6 +34,10 @@ export interface UninstallOptions {
   /** Also remove the validated configuration and its backup. */
   readonly removeConfig?: boolean;
   readonly runner?: SystemctlRunner;
+  /** LaunchAgent directory; only used on macOS. */
+  readonly agentDir?: string;
+  readonly launchctl?: LaunchctlRunner;
+  readonly uid?: number;
 }
 
 /**
@@ -56,6 +62,17 @@ export async function runUninstall(options: UninstallOptions): Promise<Uninstall
       "service",
       service.ok ? "ok" : "failed",
       service.ok ? "Gateway service stopped and removed (if it was installed)." : service.error,
+    );
+  } else if (options.platform === "darwin" && options.agentDir !== undefined) {
+    const agent = await removeLaunchAgent({
+      agentDir: options.agentDir,
+      runner: options.launchctl ?? createLaunchctlRunner(),
+      uid: options.uid ?? process.getuid?.() ?? 0,
+    });
+    record(
+      "service",
+      agent.ok ? "ok" : "failed",
+      agent.ok ? "Gateway launch agent stopped and removed (if it was installed)." : agent.error,
     );
   } else {
     record("service", "skipped", "No service manager integration on this platform yet.");

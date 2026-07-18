@@ -14,15 +14,11 @@ import {
   defaultHealthProbe,
   writePersistentConfig,
 } from "../lifecycle/cliproxy.js";
+import type { LaunchctlRunner } from "../lifecycle/launchd.js";
+import { type PersistentService, resolvePersistentService } from "../lifecycle/service.js";
 import type { HealthProbe } from "../lifecycle/session.js";
 import { startSessionGateway } from "../lifecycle/session.js";
-import {
-  createSystemctlRunner,
-  installService,
-  resolveServiceMode,
-  restartService,
-  type SystemctlRunner,
-} from "../lifecycle/systemd.js";
+import type { SystemctlRunner } from "../lifecycle/systemd.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 
 export interface UpdatePlan {
@@ -60,6 +56,10 @@ export interface UpdateOptions {
   readonly downloader?: Downloader;
   readonly extractor?: Extractor;
   readonly runner?: SystemctlRunner;
+  /** LaunchAgent directory; only used on macOS persistent mode. */
+  readonly agentDir?: string;
+  readonly launchctl?: LaunchctlRunner;
+  readonly uid?: number;
   readonly probe?: HealthProbe;
   /** Bound for the post-restart health wait; tests shorten it. */
   readonly healthTimeoutMs?: number;
@@ -138,23 +138,21 @@ async function refreshPersistentService(
   options: UpdateOptions,
   config: ClaudexConfig,
   binaryFile: string,
-  runner: SystemctlRunner,
+  service: PersistentService,
   steps: UpdateStep[],
 ): Promise<boolean> {
   const clientSecret = await ensurePersistentSecret(options.paths);
   const configFile = await writePersistentConfig(options.paths, config, clientSecret);
-  const install = await installService({
-    unitDir: options.unitDir,
+  const install = await service.install({
     binaryFile,
     configFile,
-    runner,
     localModelCatalog: !config.advanced.remoteModelCatalog,
   });
   if (!install.ok) {
     steps.push({ name: "service", status: "failed", detail: install.error });
     return false;
   }
-  const restart = await restartService(runner);
+  const restart = await service.restart();
   if (!restart.ok) {
     steps.push({ name: "service", status: "failed", detail: restart.error });
     return false;
@@ -289,13 +287,20 @@ export async function runUpdateCommand(options: UpdateOptions): Promise<UpdateRe
   });
 
   if (config.runtime.mode === "persistent") {
-    const runner = options.runner ?? createSystemctlRunner();
-    if ((await resolveServiceMode(options.platform, runner)) === "systemd") {
+    const service = await resolvePersistentService({
+      platform: options.platform,
+      unitDir: options.unitDir,
+      systemctl: options.runner,
+      agentDir: options.agentDir,
+      launchctl: options.launchctl,
+      uid: options.uid,
+    });
+    if (service !== undefined) {
       const healthy = await refreshPersistentService(
         options,
         config,
         activation.active.binaryFile,
-        runner,
+        service,
         steps,
       );
       if (!healthy) {
@@ -304,14 +309,12 @@ export async function runUpdateCommand(options: UpdateOptions): Promise<UpdateRe
         if (rollback.ok) {
           const clientSecret = await ensurePersistentSecret(options.paths);
           const configFile = await writePersistentConfig(options.paths, config, clientSecret);
-          await installService({
-            unitDir: options.unitDir,
+          await service.install({
             binaryFile: rollback.active.binaryFile,
             configFile,
-            runner,
             localModelCatalog: !config.advanced.remoteModelCatalog,
           });
-          await restartService(runner);
+          await service.restart();
           steps.push({
             name: "rollback",
             status: "rolled-back",
@@ -326,7 +329,8 @@ export async function runUpdateCommand(options: UpdateOptions): Promise<UpdateRe
       steps.push({
         name: "service",
         status: "skipped",
-        detail: "User systemd is unavailable; session launches pick up the new version directly.",
+        detail:
+          "No per-user service manager is available; session launches pick up the new version directly.",
       });
     }
   } else {

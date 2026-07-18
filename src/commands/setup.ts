@@ -8,14 +8,10 @@ import { GATEWAY_MANIFEST, type GatewayManifest, selectArtifact } from "../gatew
 import { ensurePersistentSecret } from "../launcher/launch.js";
 import { installShim, shimFileName } from "../launcher/shim.js";
 import { defaultHealthProbe, writePersistentConfig } from "../lifecycle/cliproxy.js";
+import type { LaunchctlRunner } from "../lifecycle/launchd.js";
+import { resolvePersistentService } from "../lifecycle/service.js";
 import type { HealthProbe } from "../lifecycle/session.js";
-import {
-  createSystemctlRunner,
-  installService,
-  resolveServiceMode,
-  type SystemctlRunner,
-  startService,
-} from "../lifecycle/systemd.js";
+import type { SystemctlRunner } from "../lifecycle/systemd.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 
 export type SetupStepStatus = "ok" | "skipped" | "failed";
@@ -42,6 +38,10 @@ export interface SetupOptions {
   readonly managerEntry: string;
   /** systemd user-unit directory; only used on Linux persistent mode. */
   readonly unitDir: string;
+  /** LaunchAgent directory; only used on macOS persistent mode. */
+  readonly agentDir?: string;
+  readonly launchctl?: LaunchctlRunner;
+  readonly uid?: number;
   readonly manifest?: GatewayManifest;
   readonly downloader?: Downloader;
   readonly extractor?: Extractor;
@@ -182,7 +182,6 @@ export async function runSetup(options: SetupOptions): Promise<SetupReport> {
     detail: `Wrote owner-only gateway configuration to ${gatewayConfigFile}.`,
   });
 
-  let serviceHealthy = false;
   if (config.runtime.mode !== "persistent") {
     steps.push({
       name: "service",
@@ -190,28 +189,32 @@ export async function runSetup(options: SetupOptions): Promise<SetupReport> {
       detail: "Session mode is configured; the gateway starts per launch.",
     });
   } else {
-    const runner = options.runner ?? createSystemctlRunner();
-    const serviceMode = await resolveServiceMode(options.platform, runner);
-    if (serviceMode !== "systemd") {
+    const service = await resolvePersistentService({
+      platform: options.platform,
+      unitDir: options.unitDir,
+      systemctl: options.runner,
+      agentDir: options.agentDir,
+      launchctl: options.launchctl,
+      uid: options.uid,
+    });
+    if (service === undefined) {
       steps.push({
         name: "service",
         status: "skipped",
         detail:
-          "User systemd is unavailable on this host; launches fall back to session mode gateways.",
+          "No per-user service manager is available on this host; launches fall back to session mode gateways.",
       });
     } else {
-      const install = await installService({
-        unitDir: options.unitDir,
+      const install = await service.install({
         binaryFile: activation.active.binaryFile,
         configFile: gatewayConfigFile,
-        runner,
         localModelCatalog: !config.advanced.remoteModelCatalog,
       });
       if (!install.ok) {
         steps.push({ name: "service", status: "failed", detail: install.error });
         return report(false);
       }
-      const start = await startService(runner);
+      const start = await service.start();
       if (!start.ok) {
         steps.push({ name: "service", status: "failed", detail: start.error });
         return report(false);
@@ -219,11 +222,12 @@ export async function runSetup(options: SetupOptions): Promise<SetupReport> {
       steps.push({
         name: "service",
         status: "ok",
-        detail: "Installed and started the claudex-gateway user service.",
+        detail: `Installed and started the persistent gateway (${service.kind}).`,
       });
 
       const probe = options.probe ?? defaultHealthProbe;
       const deadline = Date.now() + 15_000;
+      let serviceHealthy = false;
       while (Date.now() < deadline && !serviceHealthy) {
         serviceHealthy = await probe({
           host: config.runtime.host,
