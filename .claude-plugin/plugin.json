@@ -1,0 +1,13 @@
+{
+  "name": "claudex",
+  "version": "0.1.0",
+  "description": "Manage a secure local Codex gateway for Claude Code, including OAuth, diagnostics, updates, and rollback.",
+  "author": {
+    "name": "5omeOtherGuy",
+    "url": "https://github.com/5omeOtherGuy"
+  },
+  "homepage": "https://github.com/5omeOtherGuy/claudex-cc#readme",
+  "repository": "https://github.com/5omeOtherGuy/claudex-cc",
+  "license": "MIT",
+  "keywords": ["codex", "oauth", "gateway", "claude-code"]
+}

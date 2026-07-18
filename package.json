@@ -1,0 +1,68 @@
+{
+  "name": "claudex-cc",
+  "version": "0.1.0",
+  "description": "Manage a secure local Codex gateway for Claude Code, including OAuth setup, diagnostics, updates, and rollback.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "keywords": [
+    "claude-code",
+    "codex",
+    "oauth",
+    "cli-proxy-api",
+    "llm-gateway",
+    "plugin"
+  ],
+  "homepage": "https://github.com/5omeOtherGuy/claudex-cc#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/5omeOtherGuy/claudex-cc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/5omeOtherGuy/claudex-cc/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "claudex-pluginctl": "dist/src/cli.js"
+  },
+  "files": [
+    ".claude-plugin/",
+    "agents/",
+    "bin/",
+    "dist/",
+    "docs/",
+    "hooks/",
+    "references/",
+    "skills/",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "clean": "node scripts/clean.mjs",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome check .",
+    "test": "node --test --import tsx \"tests/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "plugin:validate": "node scripts/validate-plugin.mjs",
+    "pack:dry-run": "npm pack --dry-run",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run plugin:validate && npm run pack:dry-run",
+    "preflight": "bash scripts/worktree-preflight.sh",
+    "worktree:create": "bash scripts/create-worktree.sh",
+    "check:primary": "bash scripts/check-primary-fresh.sh",
+    "sync:primary": "bash scripts/sync-primary.sh",
+    "cleanup:worktree": "bash scripts/worktree-cleanup.sh"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@types/node": "22.19.0",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2"
+  }
+}

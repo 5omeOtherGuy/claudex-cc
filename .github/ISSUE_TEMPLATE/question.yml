@@ -1,0 +1,16 @@
+name: Question
+description: Ask about supported setup, behavior, or project direction.
+title: "question: "
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Do not include credentials, callback URLs, account identifiers, prompts, or raw headers.

@@ -1,0 +1,49 @@
+name: Compatibility report
+description: Report a Claude Code, gateway, model, or platform compatibility problem.
+title: "compat: "
+labels: [compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste only sanitized doctor output. Remove credentials, callback URLs, account identifiers, prompts, payload bodies, and raw headers.
+  - type: input
+    id: versions
+    attributes:
+      label: Version tuple
+      description: Claude Code, Claudex, CLIProxyAPI, model ID, OS/architecture
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Runtime mode
+      options: [persistent, session, unknown]
+    validations:
+      required: true
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Failing capability
+      options: [startup, OAuth, text streaming, tools, parallel tools, subagents, image input, compaction, update, rollback, uninstall, other]
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Sanitized doctor output
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I removed all secrets, callback material, account identifiers, prompts, and payload bodies.
+          required: true

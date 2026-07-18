@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/5omeOtherGuy/claudex-cc/security/advisories/new
+    about: Report security issues privately. Never include credentials in public issues.
