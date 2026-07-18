@@ -41,6 +41,8 @@ export type ServiceResult = { readonly ok: true } | { readonly ok: false; readon
 export interface UnitOptions {
   readonly binaryFile: string;
   readonly configFile: string;
+  /** Start the gateway with its embedded model catalog only (--local-model). */
+  readonly localModelCatalog?: boolean | undefined;
 }
 
 export function renderServiceUnit(options: UnitOptions): string {
@@ -54,7 +56,7 @@ export function renderServiceUnit(options: UnitOptions): string {
     "After=network.target",
     "",
     "[Service]",
-    `ExecStart="${options.binaryFile}" --config "${options.configFile}"`,
+    `ExecStart="${options.binaryFile}" --config "${options.configFile}"${options.localModelCatalog === true ? " --local-model" : ""}`,
     "Restart=on-failure",
     "RestartSec=2",
     "UMask=0077",
@@ -85,6 +87,8 @@ export interface InstallServiceOptions {
   readonly binaryFile: string;
   readonly configFile: string;
   readonly runner: SystemctlRunner;
+  /** Start the gateway with its embedded model catalog only (--local-model). */
+  readonly localModelCatalog?: boolean | undefined;
 }
 
 export async function installService(options: InstallServiceOptions): Promise<ServiceResult> {
@@ -110,7 +114,11 @@ export async function installService(options: InstallServiceOptions): Promise<Se
   await mkdir(options.unitDir, { recursive: true });
   await writeFile(
     unitFile,
-    renderServiceUnit({ binaryFile: options.binaryFile, configFile: options.configFile }),
+    renderServiceUnit({
+      binaryFile: options.binaryFile,
+      configFile: options.configFile,
+      localModelCatalog: options.localModelCatalog,
+    }),
     { mode: 0o644 },
   );
 

@@ -98,3 +98,36 @@ test("unknown subcommands exit with usage", async () => {
   assert.equal(result.exitCode, 2);
   assert.match(result.output, /usage/i);
 });
+
+test("config preset lists the available presets", async () => {
+  const paths = await makePaths();
+  const result = await runConfigCommand(["preset"], paths);
+  assert.equal(result.exitCode, 0);
+  assert.match(result.output, /compatibility:/);
+  assert.match(result.output, /balanced:/);
+  assert.match(result.output, /max-reasoning:/);
+});
+
+test("config preset applies a named preset and persists it", async () => {
+  const paths = await makePaths();
+  const result = await runConfigCommand(["preset", "max-reasoning"], paths);
+  assert.equal(result.exitCode, 0, result.output);
+  assert.match(result.output, /Applied preset "max-reasoning"/);
+
+  const stored = JSON.parse(await readFile(paths.configFile, "utf8")) as {
+    reasoning: { effort: string };
+    context: { maxOutputTokens: number };
+    models: { main: string };
+  };
+  assert.equal(stored.reasoning.effort, "xhigh");
+  assert.equal(stored.context.maxOutputTokens, 65_536);
+  assert.equal(stored.models.main, DEFAULT_CONFIG.models.main);
+});
+
+test("config preset rejects unknown names without writing", async () => {
+  const paths = await makePaths();
+  const result = await runConfigCommand(["preset", "turbo"], paths);
+  assert.equal(result.exitCode, 2);
+  assert.match(result.output, /Unknown preset/);
+  await assert.rejects(readFile(paths.configFile, "utf8"));
+});

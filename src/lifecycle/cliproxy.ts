@@ -4,9 +4,25 @@ import { join } from "node:path";
 import type { ClaudexConfig } from "../config/defaults.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 import { assertEmbeddablePath, ensureOwnerOnlyDir } from "../security/permissions.js";
-import type { GatewayLauncher, HealthProbe, LaunchRequest } from "./session.js";
+import type {
+  GatewayLauncher,
+  GatewayRequestPolicy,
+  HealthProbe,
+  LaunchRequest,
+} from "./session.js";
+import { policyFromConfig } from "./session.js";
 
 const LOOPBACK_PATTERN = /^(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|localhost)$/;
+
+const EFFORT_VALUES = new Set(["low", "medium", "high", "xhigh", "max"]);
+
+function assertBoundedInteger(value: number, min: number, max: number, name: string): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(
+      `Refusing to render a gateway config: ${name} must be an integer in [${min}, ${max}].`,
+    );
+  }
+}
 
 /**
  * Renders the per-session CLIProxyAPI configuration. Key names follow the
@@ -14,7 +30,9 @@ const LOOPBACK_PATTERN = /^(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|localhost)$/;
  * loopback-only, management stays local, and telemetry stays off.
  */
 export function renderSessionConfig(
-  request: Pick<LaunchRequest, "host" | "port" | "clientSecret" | "paths">,
+  request: Pick<LaunchRequest, "host" | "port" | "clientSecret" | "paths"> & {
+    readonly policy?: GatewayRequestPolicy | undefined;
+  },
 ): string {
   // Hard guards: these invariants must not be disabled by any caller.
   if (!LOOPBACK_PATTERN.test(request.host)) {
@@ -30,7 +48,8 @@ export function renderSessionConfig(
   assertEmbeddablePath(request.paths.credentialsDir, "the gateway configuration", {
     allowBackslash: true,
   });
-  return [
+
+  const lines = [
     `host: "${request.host}"`,
     `port: ${request.port}`,
     `auth-dir: '${request.paths.credentialsDir}'`,
@@ -43,8 +62,53 @@ export function renderSessionConfig(
     "debug: false",
     "logging-to-file: false",
     "usage-statistics-enabled: false",
-    "",
-  ].join("\n");
+  ];
+
+  const policy = request.policy;
+  if (policy !== undefined) {
+    // The rendered values are re-validated here so no caller can smuggle
+    // unbounded retries or malformed YAML through the policy object.
+    assertBoundedInteger(policy.retries, 0, 10, "requests.retries");
+    assertBoundedInteger(
+      policy.streamingKeepaliveSeconds,
+      0,
+      3_600,
+      "advanced.streamingKeepaliveSeconds",
+    );
+    assertBoundedInteger(
+      policy.streamingBootstrapRetries,
+      0,
+      5,
+      "advanced.streamingBootstrapRetries",
+    );
+    assertBoundedInteger(policy.maxOutputTokens, 1, 10_000_000, "context.maxOutputTokens");
+    if (!EFFORT_VALUES.has(policy.reasoningEffort)) {
+      throw new Error("Refusing to render a gateway config with an unknown reasoning effort.");
+    }
+    lines.push(
+      // Bounded retries for transient upstream failures (403/408/5xx);
+      // permanent failures are surfaced immediately by the gateway.
+      `request-retry: ${policy.retries}`,
+      "routing:",
+      '  strategy: "round-robin"',
+      `  session-affinity: ${policy.sessionAffinity}`,
+      "streaming:",
+      `  keepalive-seconds: ${policy.streamingKeepaliveSeconds}`,
+      `  bootstrap-retries: ${policy.streamingBootstrapRetries}`,
+      // Proxy-side output cap and reasoning effort, enforced regardless of
+      // what the client requests (upstream payload.override semantics).
+      "payload:",
+      "  override:",
+      "    - models:",
+      '        - name: "*"',
+      '          protocol: "codex"',
+      "      params:",
+      `        "max_output_tokens": ${policy.maxOutputTokens}`,
+      `        "reasoning.effort": "${policy.reasoningEffort}"`,
+    );
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 export async function writeSessionConfig(request: LaunchRequest): Promise<string> {
@@ -73,6 +137,7 @@ export async function writePersistentConfig(
     port: config.runtime.port,
     clientSecret,
     paths,
+    policy: policyFromConfig(config),
   });
   await writeFile(configFile, rendered, { mode: 0o600 });
   return configFile;
@@ -82,7 +147,11 @@ export function createCliproxyLauncher(): GatewayLauncher {
   return {
     launch: async (request) => {
       const configFile = await writeSessionConfig(request);
-      return spawn(request.binaryFile, ["--config", configFile], {
+      const args = ["--config", configFile];
+      if (request.policy?.remoteModelCatalog === false) {
+        args.push("--local-model");
+      }
+      return spawn(request.binaryFile, args, {
         stdio: "ignore",
         detached: false,
       });

@@ -205,6 +205,7 @@ export async function runSetup(options: SetupOptions): Promise<SetupReport> {
         binaryFile: activation.active.binaryFile,
         configFile: gatewayConfigFile,
         runner,
+        localModelCatalog: !config.advanced.remoteModelCatalog,
       });
       if (!install.ok) {
         steps.push({ name: "service", status: "failed", detail: install.error });
