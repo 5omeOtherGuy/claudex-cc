@@ -51,3 +51,54 @@ test("the written session config is owner-only", async (t) => {
   }
   assert.equal((await stat(file)).mode & 0o777, 0o600);
 });
+
+test("a request policy renders retries, routing, streaming, and the output cap", async () => {
+  const request = await makeRequest();
+  const rendered = renderSessionConfig({
+    ...request,
+    policy: {
+      retries: 4,
+      sessionAffinity: true,
+      streamingKeepaliveSeconds: 15,
+      streamingBootstrapRetries: 1,
+      maxOutputTokens: 32_768,
+      reasoningEffort: "xhigh",
+      remoteModelCatalog: true,
+    },
+  });
+
+  assert.match(rendered, /request-retry: 4/);
+  assert.match(rendered, /session-affinity: true/);
+  assert.match(rendered, /keepalive-seconds: 15/);
+  assert.match(rendered, /bootstrap-retries: 1/);
+  assert.match(rendered, /"max_output_tokens": 32768/);
+  assert.match(rendered, /"reasoning\.effort": "xhigh"/);
+  assert.match(rendered, /protocol: "codex"/);
+});
+
+test("policy values are re-validated at render time", async () => {
+  const request = await makeRequest();
+  const policy = {
+    retries: 3,
+    sessionAffinity: false,
+    streamingKeepaliveSeconds: 0,
+    streamingBootstrapRetries: 0,
+    maxOutputTokens: 32_768,
+    reasoningEffort: "medium",
+    remoteModelCatalog: true,
+  };
+  assert.throws(
+    () => renderSessionConfig({ ...request, policy: { ...policy, retries: 999 } }),
+    /retries/,
+  );
+  assert.throws(
+    () => renderSessionConfig({ ...request, policy: { ...policy, reasoningEffort: 'yolo"' } }),
+    /reasoning effort/,
+  );
+});
+
+test("a config without a policy renders the legacy minimal gateway config", async () => {
+  const request = await makeRequest();
+  const rendered = renderSessionConfig(request);
+  assert.doesNotMatch(rendered, /request-retry|payload|routing/);
+});

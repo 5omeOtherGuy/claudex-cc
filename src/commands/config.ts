@@ -1,4 +1,5 @@
 import { DEFAULT_CONFIG } from "../config/defaults.js";
+import { applyPreset, findPreset, PRESETS } from "../config/presets.js";
 import { loadConfig, saveConfig } from "../config/store.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 
@@ -10,9 +11,11 @@ export interface ConfigCommandResult {
 const USAGE = `Usage:
   claudex-pluginctl config show [--json]
   claudex-pluginctl config set <key> <value>
+  claudex-pluginctl config preset [<name>]
   claudex-pluginctl config reset
 
 Keys use dot notation, for example runtime.port or models.main.
+Presets: ${PRESETS.map((preset) => preset.name).join(", ")}.
 `;
 
 function flatten(value: unknown, prefix: string, lines: string[]): void {
@@ -99,6 +102,29 @@ export async function runConfigCommand(
         return { exitCode: 1, output: `${message}\n` };
       }
       return { exitCode: 0, output: `Set ${key} = ${rawValue}\n` };
+    }
+    case "preset": {
+      const [name] = rest.filter((arg) => !arg.startsWith("--"));
+      if (name === undefined) {
+        const lines = PRESETS.map((preset) => `${preset.name}: ${preset.description}`);
+        return { exitCode: 0, output: `${lines.join("\n")}\n` };
+      }
+      const preset = findPreset(name);
+      if (preset === undefined) {
+        return {
+          exitCode: 2,
+          output: `Unknown preset "${name}". Available: ${PRESETS.map((entry) => entry.name).join(", ")}.\n`,
+        };
+      }
+      const loaded = await loadConfig(paths);
+      if (!loaded.ok) {
+        return { exitCode: 1, output: `${loaded.error}\n` };
+      }
+      await saveConfig(paths, applyPreset(loaded.config, preset));
+      return {
+        exitCode: 0,
+        output: `Applied preset "${preset.name}" (reasoning, context, and request policy updated; models and runtime untouched).\nChanges apply to the next \`claudex\` launch; persistent-mode gateways pick them up after \`setup\` or \`update\` rewrites the service config.\n`,
+      };
     }
     case "reset": {
       await saveConfig(paths, DEFAULT_CONFIG);

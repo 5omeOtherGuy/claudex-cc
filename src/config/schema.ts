@@ -1,6 +1,14 @@
 import type { ClaudexConfig } from "./defaults.js";
 
-export const CONFIG_VERSION = 1;
+export const CONFIG_VERSION = 2;
+
+/**
+ * Tokens reserved beyond the response budget for tool results and reasoning
+ * traces between the compaction threshold and the advertised window. Derived
+ * from observed Claude Code sessions: large tool results plus reasoning rarely
+ * exceed this between compaction checks.
+ */
+export const TOOL_REASONING_RESERVE_TOKENS = 8_192;
 
 export interface ConfigValidationError {
   /** Dot-separated location of the offending value, or "" for the root. */
@@ -76,7 +84,27 @@ const SCHEMA: Readonly<Record<string, Readonly<Record<string, FieldCheck>>>> = {
     compactAt: positiveInteger,
     maxOutputTokens: positiveInteger,
   },
+  requests: {
+    retries: boundedInteger(0, 10),
+  },
+  advanced: {
+    sessionAffinity: booleanValue,
+    streamingKeepaliveSeconds: boundedInteger(0, 3_600),
+    streamingBootstrapRetries: boundedInteger(0, 5),
+    remoteModelCatalog: booleanValue,
+  },
 };
+
+function booleanValue(value: unknown): string | undefined {
+  return typeof value === "boolean" ? undefined : "must be true or false.";
+}
+
+function boundedInteger(min: number, max: number): FieldCheck {
+  return (value) =>
+    Number.isInteger(value) && (value as number) >= min && (value as number) <= max
+      ? undefined
+      : `must be an integer between ${min} and ${max}.`;
+}
 
 function nonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? undefined : "must be a non-empty string.";
@@ -171,11 +199,13 @@ export function validateConfig(value: unknown): ValidationResult {
         path: "context.compactAt",
         message: `must be below context.advertisedWindow (${context.advertisedWindow}) to reserve compaction headroom.`,
       });
-    } else if (context.compactAt + context.maxOutputTokens >= context.advertisedWindow) {
+    } else if (
+      context.compactAt + context.maxOutputTokens + TOOL_REASONING_RESERVE_TOKENS >=
+      context.advertisedWindow
+    ) {
       errors.push({
         path: "context.maxOutputTokens",
-        message:
-          "context.compactAt + context.maxOutputTokens must stay below context.advertisedWindow.",
+        message: `context.compactAt + context.maxOutputTokens + ${TOOL_REASONING_RESERVE_TOKENS} (tool/reasoning reserve) must stay below context.advertisedWindow.`,
       });
     }
   }

@@ -12,7 +12,21 @@ export type MigrationResult =
 type MigrationStep = (config: Record<string, unknown>) => Record<string, unknown>;
 
 // Index N migrates version N to N+1. Version 0 is the unversioned scaffold format.
-const MIGRATIONS: readonly MigrationStep[] = [(config) => ({ ...config, configVersion: 1 })];
+const MIGRATIONS: readonly MigrationStep[] = [
+  (config) => ({ ...config, configVersion: 1 }),
+  // v2 adds the bounded request policy and the explicit compatibility options.
+  (config) => ({
+    ...config,
+    configVersion: 2,
+    requests: { retries: 3 },
+    advanced: {
+      sessionAffinity: false,
+      streamingKeepaliveSeconds: 0,
+      streamingBootstrapRetries: 0,
+      remoteModelCatalog: true,
+    },
+  }),
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

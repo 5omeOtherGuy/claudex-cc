@@ -96,6 +96,7 @@ async function refreshPersistentService(
     binaryFile,
     configFile,
     runner,
+    localModelCatalog: !config.advanced.remoteModelCatalog,
   });
   if (!install.ok) {
     steps.push({ name: "service", status: "failed", detail: install.error });
@@ -231,6 +232,7 @@ export async function runUpdateCommand(options: UpdateOptions): Promise<UpdateRe
             binaryFile: rollback.active.binaryFile,
             configFile,
             runner,
+            localModelCatalog: !config.advanced.remoteModelCatalog,
           });
           await restartService(runner);
           steps.push({

@@ -96,3 +96,38 @@ test("wrong config version is rejected by validation", () => {
   config.configVersion = CONFIG_VERSION + 1;
   assert.equal(validateConfig(config).ok, false);
 });
+
+test("headroom rule reserves tool and reasoning tokens beyond the output budget", () => {
+  const config = structuredClone(DEFAULT_CONFIG) as unknown as {
+    context: { advertisedWindow: number; compactAt: number; maxOutputTokens: number };
+  };
+  // Would pass the naive compactAt+maxOutput check but violates the reserve.
+  config.context = { advertisedWindow: 100_000, compactAt: 90_000, maxOutputTokens: 8_000 };
+  const result = validateConfig(config);
+  assert.equal(result.ok, false);
+  assert.ok(!result.ok && result.errors.some((entry) => entry.message.includes("reserve")));
+});
+
+test("request retries are bounded", () => {
+  const config = structuredClone(DEFAULT_CONFIG) as unknown as {
+    requests: { retries: number };
+  };
+  config.requests.retries = 99;
+  const result = validateConfig(config);
+  assert.equal(result.ok, false);
+  assert.ok(!result.ok && result.errors.some((entry) => entry.path === "requests.retries"));
+});
+
+test("advanced options validate types and bounds", () => {
+  const config = structuredClone(DEFAULT_CONFIG) as unknown as {
+    advanced: Record<string, unknown>;
+  };
+  config.advanced.sessionAffinity = "yes";
+  config.advanced.streamingKeepaliveSeconds = -1;
+  const result = validateConfig(config);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.errors.some((entry) => entry.path === "advanced.sessionAffinity"));
+    assert.ok(result.errors.some((entry) => entry.path === "advanced.streamingKeepaliveSeconds"));
+  }
+});

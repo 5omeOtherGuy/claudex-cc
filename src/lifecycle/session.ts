@@ -6,12 +6,40 @@ import type { ClaudexConfig } from "../config/defaults.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 import { ensureOwnerOnlyDir } from "../security/permissions.js";
 
+/**
+ * Gateway-side request policy embedded into the rendered configuration. Key
+ * names map to verified upstream options of the pinned release:
+ * request-retry, routing.session-affinity, streaming.*, and payload.override.
+ */
+export interface GatewayRequestPolicy {
+  readonly retries: number;
+  readonly sessionAffinity: boolean;
+  readonly streamingKeepaliveSeconds: number;
+  readonly streamingBootstrapRetries: number;
+  readonly maxOutputTokens: number;
+  readonly reasoningEffort: string;
+  readonly remoteModelCatalog: boolean;
+}
+
+export function policyFromConfig(config: ClaudexConfig): GatewayRequestPolicy {
+  return {
+    retries: config.requests.retries,
+    sessionAffinity: config.advanced.sessionAffinity,
+    streamingKeepaliveSeconds: config.advanced.streamingKeepaliveSeconds,
+    streamingBootstrapRetries: config.advanced.streamingBootstrapRetries,
+    maxOutputTokens: config.context.maxOutputTokens,
+    reasoningEffort: config.reasoning.effort,
+    remoteModelCatalog: config.advanced.remoteModelCatalog,
+  };
+}
+
 export interface LaunchRequest {
   readonly binaryFile: string;
   readonly host: string;
   readonly port: number;
   readonly clientSecret: string;
   readonly paths: ClaudexPaths;
+  readonly policy?: GatewayRequestPolicy | undefined;
 }
 
 /** Minimal child-process surface the lifecycle needs; satisfied by node:child_process. */
@@ -149,6 +177,7 @@ export async function startSessionGateway(options: SessionOptions): Promise<Sess
     port,
     clientSecret,
     paths: options.paths,
+    policy: policyFromConfig(options.config),
   });
 
   let exited = false;

@@ -131,7 +131,7 @@ test("setup installs config, gateway, service, and shim end to end", skipOnWindo
   const config = JSON.parse(await readFile(fixture.paths.configFile, "utf8")) as {
     configVersion: number;
   };
-  assert.equal(config.configVersion, 1);
+  assert.equal(config.configVersion, 2);
 
   const active = await getActiveGateway(fixture.paths);
   assert.equal(active?.version, "7.2.86");
