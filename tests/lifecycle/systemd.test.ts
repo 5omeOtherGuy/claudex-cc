@@ -29,7 +29,7 @@ function fakeRunner(
       calls.push({ args });
       const key = args.join(" ");
       for (const [prefix, response] of Object.entries(responses)) {
-        if (key.startsWith(prefix)) {
+        if (response !== undefined && key.startsWith(prefix)) {
           return { code: response.code, stdout: response.stdout ?? "", stderr: "" };
         }
       }
