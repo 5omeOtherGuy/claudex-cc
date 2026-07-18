@@ -96,7 +96,12 @@ export async function runLogin(options: LoginOptions): Promise<LoginResult> {
   }
 
   const progress = options.onProgress ?? (() => {});
-  const signal = AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  // A plain ref'ed timer instead of AbortSignal.timeout: the login must keep
+  // the event loop alive while waiting on the provider (Node 22 unrefs the
+  // AbortSignal.timeout timer, letting the process drain mid-login).
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const signal = controller.signal;
 
   try {
     let expectedState: string | undefined;
@@ -167,6 +172,7 @@ export async function runLogin(options: LoginOptions): Promise<LoginResult> {
     progress("Login verified with an authenticated request.");
     return { ok: true };
   } finally {
+    clearTimeout(timer);
     await lock.release();
   }
 }
