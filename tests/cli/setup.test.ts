@@ -88,7 +88,29 @@ async function makeFixture(overrides?: Partial<SetupOptions>): Promise<Fixture> 
   };
 }
 
-test("setup installs config, gateway, service, and shim end to end", async () => {
+// The systemd unit embeds real fixture paths; on Windows hosts those contain
+// backslashes, which the embeddable-path guard rightly rejects. The service
+// path is Linux-only behavior, so persistent-mode setup runs are skipped there.
+const skipOnWindows = { skip: process.platform === "win32" };
+
+async function writeConfigWithMode(
+  fixture: Fixture,
+  mode: "persistent" | "session",
+  gatewayVersion = "7.2.86",
+): Promise<void> {
+  await mkdir(fixture.paths.configDir, { recursive: true });
+  const config = {
+    configVersion: 1,
+    runtime: { mode, host: "127.0.0.1", port: 8317 },
+    gateway: { implementation: "cliproxyapi", version: gatewayVersion, updateChannel: "pinned" },
+    models: { main: "a", subagent: "b", fallback: "c" },
+    reasoning: { effort: "medium" },
+    context: { advertisedWindow: 372000, compactAt: 230000, maxOutputTokens: 32768 },
+  };
+  await writeFile(fixture.paths.configFile, JSON.stringify(config));
+}
+
+test("setup installs config, gateway, service, and shim end to end", skipOnWindows, async () => {
   const fixture = await makeFixture();
   const report = await runSetup(fixture.options);
 
@@ -137,6 +159,7 @@ test("setup installs config, gateway, service, and shim end to end", async () =>
 
 test("setup is idempotent: a second run skips the completed install", async () => {
   const fixture = await makeFixture();
+  await writeConfigWithMode(fixture, "session");
   assert.equal((await runSetup(fixture.options)).ok, true);
 
   const second = await runSetup(fixture.options);
@@ -162,16 +185,7 @@ test("checksum mismatch fails the install step and stops dependent steps", async
 
 test("a config pinning a different gateway version fails closed", async () => {
   const fixture = await makeFixture();
-  await mkdir(fixture.paths.configDir, { recursive: true });
-  const config = {
-    configVersion: 1,
-    runtime: { mode: "persistent", host: "127.0.0.1", port: 8317 },
-    gateway: { implementation: "cliproxyapi", version: "9.9.9", updateChannel: "pinned" },
-    models: { main: "a", subagent: "b", fallback: "c" },
-    reasoning: { effort: "medium" },
-    context: { advertisedWindow: 372000, compactAt: 230000, maxOutputTokens: 32768 },
-  };
-  await writeFile(fixture.paths.configFile, JSON.stringify(config));
+  await writeConfigWithMode(fixture, "persistent", "9.9.9");
 
   const report = await runSetup(fixture.options);
   assert.equal(report.ok, false);
@@ -181,6 +195,7 @@ test("a config pinning a different gateway version fails closed", async () => {
 
 test("a foreign claudex launcher fails the shim step", async () => {
   const fixture = await makeFixture();
+  await writeConfigWithMode(fixture, "session");
   await mkdir(fixture.binDir, { recursive: true });
   await writeFile(join(fixture.binDir, "claudex"), "#!/bin/sh\necho not ours\n", { mode: 0o755 });
 
@@ -193,16 +208,7 @@ test("a foreign claudex launcher fails the shim step", async () => {
 
 test("session-mode config skips the service and still succeeds", async () => {
   const fixture = await makeFixture();
-  await mkdir(fixture.paths.configDir, { recursive: true });
-  const config = {
-    configVersion: 1,
-    runtime: { mode: "session", host: "127.0.0.1", port: 8317 },
-    gateway: { implementation: "cliproxyapi", version: "7.2.86", updateChannel: "pinned" },
-    models: { main: "a", subagent: "b", fallback: "c" },
-    reasoning: { effort: "medium" },
-    context: { advertisedWindow: 372000, compactAt: 230000, maxOutputTokens: 32768 },
-  };
-  await writeFile(fixture.paths.configFile, JSON.stringify(config));
+  await writeConfigWithMode(fixture, "session");
 
   const report = await runSetup(fixture.options);
   assert.equal(report.ok, true, JSON.stringify(report.steps, null, 2));
@@ -230,6 +236,7 @@ test("unavailable user systemd falls back to session launches", async () => {
 
 test("the rendered report explains the relaunch requirement", async () => {
   const fixture = await makeFixture();
+  await writeConfigWithMode(fixture, "session");
   const report = await runSetup(fixture.options);
   const rendered = renderSetupReport(report);
   assert.match(rendered, /already-running Claude Code session keeps its current provider/);
