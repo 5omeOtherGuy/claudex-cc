@@ -110,6 +110,7 @@ async function run(argv: readonly string[]): Promise<number> {
         binDir: join(homedir(), ".local", "bin"),
         managerEntry: fileURLToPath(import.meta.url),
         unitDir: join(homedir(), ".config", "systemd", "user"),
+        agentDir: join(homedir(), "Library", "LaunchAgents"),
       });
       if (json) {
         writeJson(report);
@@ -152,6 +153,7 @@ async function run(argv: readonly string[]): Promise<number> {
         platform: process.platform,
         arch: process.arch,
         unitDir: join(homedir(), ".config", "systemd", "user"),
+        agentDir: join(homedir(), "Library", "LaunchAgents"),
         apply: !args.includes("--check"),
         allowLiveInference: args.includes("--allow-live-inference"),
       });
@@ -168,6 +170,7 @@ async function run(argv: readonly string[]): Promise<number> {
         paths,
         platform: process.platform,
         unitDir: join(homedir(), ".config", "systemd", "user"),
+        agentDir: join(homedir(), "Library", "LaunchAgents"),
       });
       if (json) {
         writeJson(report);
@@ -191,6 +194,7 @@ async function run(argv: readonly string[]): Promise<number> {
         platform: process.platform,
         binDir: join(homedir(), ".local", "bin"),
         unitDir: join(homedir(), ".config", "systemd", "user"),
+        agentDir: join(homedir(), "Library", "LaunchAgents"),
         removeCredentials: remove,
         removeConfig: args.includes("--delete-config"),
       });

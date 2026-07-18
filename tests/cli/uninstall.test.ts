@@ -144,3 +144,33 @@ test("uninstall is idempotent on an empty system", async () => {
   const second = await runUninstall(fixture.options({ removeCredentials: true }));
   assert.equal(second.ok, true);
 });
+
+test("darwin uninstall removes the managed launch agent", async () => {
+  const fixture = await makeInstalledFixture();
+  const agentDir = join(fixture.unitDir, "..", "LaunchAgents");
+  await mkdir(agentDir, { recursive: true });
+  await writeFile(
+    join(agentDir, "com.claudex.gateway.plist"),
+    "<!-- Managed by Claudex -->\n<plist/>\n",
+  );
+  const launchctlCalls: string[][] = [];
+
+  const report = await runUninstall(
+    fixture.options({
+      platform: "darwin",
+      agentDir,
+      uid: 501,
+      launchctl: {
+        run: async (args) => {
+          launchctlCalls.push([...args]);
+          return { code: 0, stdout: "", stderr: "" };
+        },
+      },
+    }),
+  );
+
+  assert.equal(report.ok, true, JSON.stringify(report.steps, null, 2));
+  assert.equal(await exists(join(agentDir, "com.claudex.gateway.plist")), false);
+  assert.ok(launchctlCalls.some((call) => call[0] === "bootout"));
+  assert.equal(fixture.systemctlCalls.length, 0);
+});

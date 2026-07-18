@@ -2,14 +2,10 @@ import { loadConfig, saveConfig } from "../config/store.js";
 import { rollbackGatewayActivation } from "../gateway/activate.js";
 import { ensurePersistentSecret } from "../launcher/launch.js";
 import { defaultHealthProbe, writePersistentConfig } from "../lifecycle/cliproxy.js";
+import type { LaunchctlRunner } from "../lifecycle/launchd.js";
+import { resolvePersistentService } from "../lifecycle/service.js";
 import type { HealthProbe } from "../lifecycle/session.js";
-import {
-  createSystemctlRunner,
-  installService,
-  resolveServiceMode,
-  restartService,
-  type SystemctlRunner,
-} from "../lifecycle/systemd.js";
+import type { SystemctlRunner } from "../lifecycle/systemd.js";
 import type { ClaudexPaths } from "../platform/paths.js";
 
 export interface RollbackStep {
@@ -28,6 +24,10 @@ export interface RollbackOptions {
   readonly platform: string;
   readonly unitDir: string;
   readonly runner?: SystemctlRunner;
+  /** LaunchAgent directory; only used on macOS persistent mode. */
+  readonly agentDir?: string;
+  readonly launchctl?: LaunchctlRunner;
+  readonly uid?: number;
   readonly probe?: HealthProbe;
   readonly healthTimeoutMs?: number;
 }
@@ -84,30 +84,35 @@ export async function runRollbackCommand(options: RollbackOptions): Promise<Roll
     return { ok, steps };
   }
 
-  const runner = options.runner ?? createSystemctlRunner();
-  if ((await resolveServiceMode(options.platform, runner)) !== "systemd") {
+  const service = await resolvePersistentService({
+    platform: options.platform,
+    unitDir: options.unitDir,
+    systemctl: options.runner,
+    agentDir: options.agentDir,
+    launchctl: options.launchctl,
+    uid: options.uid,
+  });
+  if (service === undefined) {
     record(
       "service",
       "skipped",
-      "User systemd is unavailable; session launches pick up the rollback directly.",
+      "No per-user service manager is available; session launches pick up the rollback directly.",
     );
     return { ok, steps };
   }
 
   const clientSecret = await ensurePersistentSecret(options.paths);
   const configFile = await writePersistentConfig(options.paths, config, clientSecret);
-  const install = await installService({
-    unitDir: options.unitDir,
+  const install = await service.install({
     binaryFile: rollback.active.binaryFile,
     configFile,
-    runner,
     localModelCatalog: !config.advanced.remoteModelCatalog,
   });
   if (!install.ok) {
     record("service", "failed", install.error);
     return { ok, steps };
   }
-  const restart = await restartService(runner);
+  const restart = await service.restart();
   if (!restart.ok) {
     record("service", "failed", restart.error);
     return { ok, steps };

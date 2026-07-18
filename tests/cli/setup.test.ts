@@ -14,16 +14,19 @@ import type { ClaudexPaths } from "../../src/platform/paths.js";
 const ARCHIVE_BYTES = Buffer.from("fake-gateway-archive");
 
 function testManifest(overrides?: { sha256?: string }): GatewayManifest {
+  const sha256 = overrides?.sha256 ?? createHash("sha256").update(ARCHIVE_BYTES).digest("hex");
+  const artifact = (assetName: string) => ({
+    assetName,
+    url: `https://example.invalid/v7.2.86/${assetName}`,
+    sha256,
+    archive: "tar.gz" as const,
+    binaryName: "cli-proxy-api",
+  });
   return {
     version: "7.2.86",
     artifacts: {
-      "linux-x64": {
-        assetName: "gw_linux_amd64.tar.gz",
-        url: "https://example.invalid/v7.2.86/gw_linux_amd64.tar.gz",
-        sha256: overrides?.sha256 ?? createHash("sha256").update(ARCHIVE_BYTES).digest("hex"),
-        archive: "tar.gz",
-        binaryName: "cli-proxy-api",
-      },
+      "linux-x64": artifact("gw_linux_amd64.tar.gz"),
+      "darwin-arm64": artifact("gw_darwin_aarch64.tar.gz"),
     },
   };
 }
@@ -241,4 +244,32 @@ test("the rendered report explains the relaunch requirement", async () => {
   const rendered = renderSetupReport(report);
   assert.match(rendered, /already-running Claude Code session keeps its current provider/);
   assert.match(rendered, /login/);
+});
+
+test("darwin persistent setup installs and boots a LaunchAgent", skipOnWindows, async () => {
+  const launchctlCalls: string[][] = [];
+  const fixture = await makeFixture({
+    platform: "darwin",
+    arch: "arm64",
+    launchctl: {
+      run: async (args) => {
+        launchctlCalls.push([...args]);
+        return { code: 0, stdout: "", stderr: "" };
+      },
+    },
+    uid: 501,
+  });
+  const agentDir = join(fixture.unitDir, "..", "LaunchAgents");
+  const report = await runSetup({ ...fixture.options, agentDir });
+
+  assert.equal(report.ok, true, JSON.stringify(report.steps, null, 2));
+  const service = report.steps.find((step) => step.name === "service");
+  assert.match(service?.detail ?? "", /launchd/);
+
+  const plist = await readFile(join(agentDir, "com.claudex.gateway.plist"), "utf8");
+  assert.match(plist, /Managed by Claudex/);
+  assert.match(plist, /com\.claudex\.gateway/);
+  assert.ok(launchctlCalls.some((call) => call[0] === "bootstrap"));
+  assert.ok(launchctlCalls.some((call) => call[0] === "kickstart"));
+  assert.equal(fixture.systemctlCalls.length, 0, "darwin setup never calls systemctl");
 });
