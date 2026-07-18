@@ -15,8 +15,9 @@ browser flow.
    - If the gateway is missing, direct the user to `/claudex:setup` and stop.
 2. Say `[2/3] Opening secure browser sign-in.` Run
    `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl login --browser` yourself with
-   Bash. The manager opens the provider sign-in page, waits for the callback,
-   normalizes credential permissions, and validates an authenticated request.
+   Bash and allow at least six minutes for completion. The manager opens the
+   provider sign-in page, waits for the callback, normalizes credential
+   permissions, and validates an authenticated request.
 3. Never print or request authorization URLs, callback URLs, device codes,
    tokens, credential filenames, account identifiers, or raw headers. Relay only
    the manager's redacted progress and final result.

@@ -63,9 +63,10 @@ settings, bypass security checks, or claim success that code did not verify.
 1. If status already confirmed owner-only credentials and launch readiness, skip
    this phase.
 2. Say `[4/5] Opening secure browser sign-in.` Run
-   `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl login --browser` yourself. The
-   manager opens the browser, waits for the callback, normalizes credential
-   permissions, and validates an authenticated request.
+   `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl login --browser` yourself and
+   allow at least six minutes for completion. The manager opens the browser,
+   waits for the callback, normalizes credential permissions, and validates an
+   authenticated request.
 3. Never print or request authorization URLs, callback URLs, device codes,
    tokens, credential filenames, account identifiers, or raw headers. Relay only
    redacted manager progress and its final result.
