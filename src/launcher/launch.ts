@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { EventEmitter } from "node:events";
-import { mkdir, open, readFile } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { inspectCredentialMetadata } from "../auth/metadata.js";
 import type { ClaudexConfig } from "../config/defaults.js";
@@ -8,6 +8,7 @@ import { getActiveGateway } from "../gateway/activate.js";
 import type { HealthProbe } from "../lifecycle/session.js";
 import { buildClaudeEnv } from "../lifecycle/session.js";
 import type { ClaudexPaths } from "../platform/paths.js";
+import { assertOwnerOnlyFile, ensureOwnerOnlyDir } from "../security/permissions.js";
 
 export type LaunchFailureReason = "gateway_missing" | "not_logged_in" | "gateway_unhealthy";
 
@@ -31,9 +32,11 @@ export async function ensurePersistentSecret(paths: ClaudexPaths): Promise<strin
   const file = join(paths.stateDir, "persistent-secret");
   const existing = await readFile(file, "utf8").catch(() => undefined);
   if (existing !== undefined && existing.trim().length > 0) {
+    // A loosely-permissioned secret is treated as compromised.
+    await assertOwnerOnlyFile(file);
     return existing.trim();
   }
-  await mkdir(paths.stateDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(paths.stateDir);
   const secret = randomBytes(24).toString("hex");
   const handle = await open(file, "w", 0o600);
   try {

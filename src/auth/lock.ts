@@ -1,5 +1,6 @@
-import { mkdir, open, readFile, rm } from "node:fs/promises";
+import { open, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { ensureOwnerOnlyDir } from "../security/permissions.js";
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 
@@ -24,7 +25,7 @@ export async function acquireLoginLock(
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
   const lockFile = join(stateDir, "login.lock");
-  await mkdir(stateDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(stateDir);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {

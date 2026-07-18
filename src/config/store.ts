@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { copyFile, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { ClaudexPaths } from "../platform/paths.js";
+import { ensureOwnerOnlyDir } from "../security/permissions.js";
 import { type ClaudexConfig, DEFAULT_CONFIG } from "./defaults.js";
 import { migrateConfig } from "./migrations.js";
 import { validateConfig } from "./schema.js";
@@ -61,7 +62,7 @@ export async function saveConfig(paths: ClaudexPaths, config: unknown): Promise<
   }
 
   // Owner-only directory before any file exists inside it (fail closed).
-  await mkdir(paths.configDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(paths.configDir);
 
   const tempFile = join(paths.configDir, `config.json.tmp-${randomBytes(6).toString("hex")}`);
   const handle = await open(tempFile, "wx", 0o600);

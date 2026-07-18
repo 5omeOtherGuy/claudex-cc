@@ -52,7 +52,7 @@ test("the rendered unit uses validated paths, umask 077, and a claudex marker", 
   const unit = renderServiceUnit({ binaryFile: BINARY, configFile: "/etc/x/gw.yaml" });
   assert.match(unit, /# Managed by Claudex/);
   assert.match(unit, /UMask=0077/);
-  assert.ok(unit.includes(`ExecStart=${BINARY} --config /etc/x/gw.yaml`));
+  assert.ok(unit.includes(`ExecStart="${BINARY}" --config "/etc/x/gw.yaml"`));
   assert.match(unit, /Restart=on-failure/);
   assert.match(unit, /WantedBy=default\.target/);
 });

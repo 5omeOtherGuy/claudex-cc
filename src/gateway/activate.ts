@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { copyFile, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { ClaudexPaths } from "../platform/paths.js";
+import { ensureOwnerOnlyDir } from "../security/permissions.js";
 
 export interface ActiveGateway {
   readonly version: string;
@@ -46,7 +47,7 @@ async function readPointer(file: string): Promise<ActiveGateway | undefined> {
 
 async function writePointer(paths: ClaudexPaths, active: ActiveGateway): Promise<void> {
   const gatewayDir = join(paths.dataDir, "gateway");
-  await mkdir(gatewayDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(gatewayDir);
   const tempFile = join(gatewayDir, `active.json.tmp-${randomBytes(6).toString("hex")}`);
   const handle = await open(tempFile, "wx", 0o600);
   try {

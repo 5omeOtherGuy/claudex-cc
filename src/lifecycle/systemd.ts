@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { assertEmbeddablePath } from "../security/permissions.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,6 +44,8 @@ export interface UnitOptions {
 }
 
 export function renderServiceUnit(options: UnitOptions): string {
+  assertEmbeddablePath(options.binaryFile, "the systemd unit");
+  assertEmbeddablePath(options.configFile, "the systemd unit");
   return [
     MANAGED_MARKER,
     "# Reinstalling Claudex rewrites this file; manual edits are overwritten.",
@@ -51,7 +54,7 @@ export function renderServiceUnit(options: UnitOptions): string {
     "After=network.target",
     "",
     "[Service]",
-    `ExecStart=${options.binaryFile} --config ${options.configFile}`,
+    `ExecStart="${options.binaryFile}" --config "${options.configFile}"`,
     "Restart=on-failure",
     "RestartSec=2",
     "UMask=0077",

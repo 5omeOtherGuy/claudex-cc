@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { assertEmbeddablePath, ensureOwnerOnlyDir } from "../security/permissions.js";
 import type { GatewayLauncher, HealthProbe, LaunchRequest } from "./session.js";
+
+const LOOPBACK_PATTERN = /^(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|localhost)$/;
 
 /**
  * Renders the per-session CLIProxyAPI configuration. Key names follow the
@@ -9,10 +12,24 @@ import type { GatewayLauncher, HealthProbe, LaunchRequest } from "./session.js";
  * loopback-only, management stays local, and telemetry stays off.
  */
 export function renderSessionConfig(request: LaunchRequest): string {
+  // Hard guards: these invariants must not be disabled by any caller.
+  if (!LOOPBACK_PATTERN.test(request.host)) {
+    throw new Error(`Refusing to render a gateway config for non-loopback host "${request.host}".`);
+  }
+  if (request.clientSecret.length < 32) {
+    throw new Error("Refusing to render a gateway config without a strong client secret.");
+  }
+  if (!/^[a-f0-9]+$/.test(request.clientSecret)) {
+    throw new Error("Refusing to embed a non-hex client secret into the gateway config.");
+  }
+  // Single-quoted YAML below: backslashes are literal, so Windows paths work.
+  assertEmbeddablePath(request.paths.credentialsDir, "the gateway configuration", {
+    allowBackslash: true,
+  });
   return [
     `host: "${request.host}"`,
     `port: ${request.port}`,
-    `auth-dir: "${request.paths.credentialsDir}"`,
+    `auth-dir: '${request.paths.credentialsDir}'`,
     "api-keys:",
     `  - "${request.clientSecret}"`,
     "remote-management:",
@@ -28,7 +45,7 @@ export function renderSessionConfig(request: LaunchRequest): string {
 
 export async function writeSessionConfig(request: LaunchRequest): Promise<string> {
   const sessionsDir = join(request.paths.stateDir, "sessions");
-  await mkdir(sessionsDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(sessionsDir);
   const configFile = join(sessionsDir, `gateway-${request.port}.yaml`);
   // Contains the per-session client secret, so it must stay owner-only.
   await writeFile(configFile, renderSessionConfig(request), { mode: 0o600 });

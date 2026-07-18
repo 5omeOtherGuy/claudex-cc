@@ -1,5 +1,6 @@
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { assertEmbeddablePath } from "../security/permissions.js";
 
 const POSIX_MARKER = "# Managed by Claudex";
 const CMD_MARKER = "rem Managed by Claudex";
@@ -16,6 +17,9 @@ export function shimFileName(platform: string): string {
  * gateway before Claude Code starts.
  */
 export function renderShim(platform: string, managerEntry: string): string {
+  assertEmbeddablePath(managerEntry, "the claudex launcher shim", {
+    allowBackslash: platform === "win32",
+  });
   if (platform === "win32") {
     return [
       "@echo off",

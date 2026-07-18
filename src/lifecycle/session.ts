@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import type { ClaudexConfig } from "../config/defaults.js";
 import type { ClaudexPaths } from "../platform/paths.js";
+import { ensureOwnerOnlyDir } from "../security/permissions.js";
 
 export interface LaunchRequest {
   readonly binaryFile: string;
@@ -139,7 +140,7 @@ export async function startSessionGateway(options: SessionOptions): Promise<Sess
   const clientSecret = randomBytes(24).toString("hex");
 
   const sessionsDir = join(options.paths.stateDir, "sessions");
-  await mkdir(sessionsDir, { recursive: true, mode: 0o700 });
+  await ensureOwnerOnlyDir(sessionsDir);
   await cleanupStaleSessions(sessionsDir);
 
   const child = await options.launcher.launch({
