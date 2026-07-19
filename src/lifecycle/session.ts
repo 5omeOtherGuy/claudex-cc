@@ -16,7 +16,6 @@ export interface GatewayRequestPolicy {
   readonly sessionAffinity: boolean;
   readonly streamingKeepaliveSeconds: number;
   readonly streamingBootstrapRetries: number;
-  readonly maxOutputTokens: number;
   readonly reasoningEffort: string;
   readonly remoteModelCatalog: boolean;
 }
@@ -27,7 +26,6 @@ export function policyFromConfig(config: ClaudexConfig): GatewayRequestPolicy {
     sessionAffinity: config.advanced.sessionAffinity,
     streamingKeepaliveSeconds: config.advanced.streamingKeepaliveSeconds,
     streamingBootstrapRetries: config.advanced.streamingBootstrapRetries,
-    maxOutputTokens: config.context.maxOutputTokens,
     reasoningEffort: config.reasoning.effort,
     remoteModelCatalog: config.advanced.remoteModelCatalog,
   };

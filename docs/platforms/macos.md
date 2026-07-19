@@ -43,11 +43,11 @@ the explicit `--keep-credentials` / `--delete-credentials` choice.
 
 ## OAuth
 
-- **Device flow (default)** works locally and over SSH: the CLI prints the
-  provider's device URL and a short code; complete it in any browser.
-- **Browser flow** (`claudex-pluginctl login --browser`) opens the
-  provider's page in the local default browser; if no browser is available,
-  the login process prints the URL to its own terminal for manual use.
+- **Browser flow (in-product default)** opens the provider page through
+  `/claudex:login`; callback material remains inside the manager process.
+- **Device flow (headless fallback)** works locally and over SSH. Run the
+  control CLI in an interactive terminal so its one-time URL and code never
+  enter chat.
   Callback handling stays inside the login process on loopback.
 
 ## Rollback and uninstall

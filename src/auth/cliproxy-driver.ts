@@ -26,6 +26,7 @@ const defaultSpawn: LoginSpawn = (binaryFile, args) =>
 // process exits 0 even on failure, so only these lines decide the outcome.
 const DEVICE_URL_LINE = /^Codex device URL: (\S+)/;
 const DEVICE_CODE_LINE = /^Codex device code: (\S+)/;
+const OPENING_BROWSER_LINE = "Opening browser for Codex authentication";
 const VISIT_URL_LINE = "Visit the following URL to continue authentication:";
 const SUCCESS_LINES = [
   "Codex authentication successful",
@@ -47,11 +48,11 @@ function argsForMode(mode: LoginMode, configFile: string): readonly string[] {
     : ["--codex-login", "--config", configFile];
 }
 
-function parseStateParam(authorizationUrl: string): string {
+function hasStateParam(authorizationUrl: string): boolean {
   try {
-    return new URL(authorizationUrl).searchParams.get("state") ?? "";
+    return (new URL(authorizationUrl).searchParams.get("state")?.length ?? 0) > 0;
   } catch {
-    return "";
+    return false;
   }
 }
 
@@ -68,7 +69,8 @@ export function createCliproxyLoginDriver(options: CliproxyDriverOptions): Login
 
       const queue: LoginEvent[] = [];
       let exited = false;
-      let persistedEmitted = false;
+      let terminalEmitted = false;
+      let browserPromptEmitted = false;
       let notify: (() => void) | undefined;
       const wake = (): void => {
         notify?.();
@@ -98,35 +100,54 @@ export function createCliproxyLoginDriver(options: CliproxyDriverOptions): Login
           wake();
           return;
         }
+        if (trimmed === OPENING_BROWSER_LINE && !browserPromptEmitted) {
+          browserPromptEmitted = true;
+          queue.push({ kind: "browser_prompt" });
+          wake();
+          return;
+        }
         if (trimmed === VISIT_URL_LINE) {
           expectAuthUrl = true;
           return;
         }
         if (expectAuthUrl && /^https?:\/\//.test(trimmed)) {
           expectAuthUrl = false;
-          queue.push({
-            kind: "browser_prompt",
-            authorizationUrl: trimmed,
-            state: parseStateParam(trimmed),
-          });
+          if (!hasStateParam(trimmed)) {
+            terminalEmitted = true;
+            queue.push({
+              kind: "failed",
+              detail: "Browser authorization did not include OAuth state.",
+            });
+          } else if (!browserPromptEmitted) {
+            browserPromptEmitted = true;
+            queue.push({ kind: "browser_prompt" });
+          }
           wake();
           return;
         }
         if (SUCCESS_LINES.includes(trimmed)) {
-          if (!persistedEmitted) {
-            persistedEmitted = true;
+          if (!terminalEmitted) {
+            terminalEmitted = true;
+            if (mode === "browser") {
+              // The pinned gateway emits success only after comparing the real
+              // callback state with the state generated for this attempt.
+              queue.push({ kind: "browser_callback_validated" });
+            }
             queue.push({ kind: "persisted" });
             wake();
           }
           return;
         }
         const failure = FAILURE_LINE.exec(trimmed);
-        if (failure !== null) {
+        if (failure !== null && !terminalEmitted) {
+          terminalEmitted = true;
           const detail = failure[1] ?? "";
           queue.push(
             /access.?denied/i.test(detail)
               ? { kind: "denied", detail }
-              : { kind: "failed", detail },
+              : /state mismatch|state parameter is invalid/i.test(detail)
+                ? { kind: "state_mismatch", detail }
+                : { kind: "failed", detail },
           );
           wake();
         }

@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { installShim, removeShim, renderShim, shimFileName } from "../../src/launcher/shim.js";
+import {
+  inspectShim,
+  installShim,
+  removeShim,
+  renderShim,
+  shimFileName,
+} from "../../src/launcher/shim.js";
 
 async function makeBinDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "claudex-shim-"));
@@ -54,6 +60,49 @@ test("an existing unmanaged claudex executable is never overwritten", async () =
   assert.equal(result.ok, false);
   assert.ok(!result.ok && /not managed by claudex/i.test(result.error));
   assert.match(await readFile(file, "utf8"), /legacy launcher/);
+});
+
+test("a non-file launcher path is a preflight blocker", async () => {
+  const binDir = await makeBinDir();
+  await mkdir(join(binDir, "claudex"));
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.ok(inspection.status === "blocked" && /not a regular file/i.test(inspection.error));
+
+  const install = await installShim({ binDir, platform: "linux", managerEntry: ENTRY });
+  assert.equal(install.ok, false);
+});
+
+test("launcher inspection never follows symlinks", async (t) => {
+  if (process.platform === "win32") {
+    t.skip("creating symlinks requires elevated privileges on some Windows hosts");
+    return;
+  }
+  const binDir = await makeBinDir();
+  const target = join(binDir, "managed-looking-target");
+  await writeFile(target, "# Managed by Claudex\n");
+  await symlink(target, join(binDir, "claudex"));
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.equal(await readFile(target, "utf8"), "# Managed by Claudex\n");
+});
+
+test("an unreadable launcher path is a preflight blocker", async (t) => {
+  if (process.platform === "win32" || process.getuid?.() === 0) {
+    t.skip("owner-mode readability is not deterministic on this host");
+    return;
+  }
+  const binDir = await makeBinDir();
+  const file = join(binDir, "claudex");
+  await writeFile(file, "#!/bin/sh\necho blocked\n", { mode: 0o000 });
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.ok(inspection.status === "blocked" && /not readable/i.test(inspection.error));
+
+  await chmod(file, 0o600);
 });
 
 test("remove deletes only managed shims and is idempotent", async () => {

@@ -45,8 +45,8 @@ expansion characters (`%`) are refused at render time; an existing
 
 ## OAuth, diagnostics, update, rollback, uninstall
 
-- Device login (default) works in any terminal, including over SSH;
-  browser login uses the default browser on the local machine.
+- Browser login is the in-product default through `/claudex:login`; device login
+  remains available in an interactive terminal for headless sessions.
 - `status`, `doctor`, `update` (staged, checksum-verified, smoke-gated),
   `rollback`, and `uninstall` behave as on Linux minus the service steps.
   The Windows CI portability job runs the full deterministic suite,

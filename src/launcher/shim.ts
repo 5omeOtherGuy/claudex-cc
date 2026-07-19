@@ -1,4 +1,5 @@
-import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { chmod, lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assertEmbeddablePath } from "../security/permissions.js";
 
@@ -43,6 +44,55 @@ function marker(platform: string): string {
   return platform === "win32" ? CMD_MARKER : POSIX_MARKER;
 }
 
+export interface InspectShimOptions {
+  readonly binDir: string;
+  readonly platform: string;
+}
+
+export type ShimInspection =
+  | { readonly status: "absent"; readonly file: string }
+  | { readonly status: "managed"; readonly file: string }
+  | { readonly status: "foreign"; readonly file: string }
+  | { readonly status: "blocked"; readonly file: string; readonly error: string };
+
+export async function inspectShim(options: InspectShimOptions): Promise<ShimInspection> {
+  const file = join(options.binDir, shimFileName(options.platform));
+  const flags = constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW);
+  let handle: Awaited<ReturnType<typeof open>>;
+  try {
+    handle = await open(file, flags);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { status: "absent", file };
+    }
+    const info = await lstat(file).catch(() => undefined);
+    return info !== undefined && !info.isFile()
+      ? { status: "blocked", file, error: `${file} is not a regular file.` }
+      : { status: "blocked", file, error: `${file} is not readable.` };
+  }
+
+  try {
+    const opened = await handle.stat();
+    if (!opened.isFile()) {
+      return { status: "blocked", file, error: `${file} is not a regular file.` };
+    }
+    if (process.platform === "win32") {
+      const pathInfo = await lstat(file);
+      if (!pathInfo.isFile() || pathInfo.dev !== opened.dev || pathInfo.ino !== opened.ino) {
+        return { status: "blocked", file, error: `${file} changed during inspection.` };
+      }
+    }
+    const existing = await handle.readFile("utf8");
+    return existing.includes(marker(options.platform))
+      ? { status: "managed", file }
+      : { status: "foreign", file };
+  } catch {
+    return { status: "blocked", file, error: `${file} is not readable.` };
+  } finally {
+    await handle.close();
+  }
+}
+
 export interface InstallShimOptions {
   readonly binDir: string;
   readonly platform: string;
@@ -50,13 +100,16 @@ export interface InstallShimOptions {
 }
 
 export async function installShim(options: InstallShimOptions): Promise<ShimResult> {
-  const file = join(options.binDir, shimFileName(options.platform));
-  const existing = await readFile(file, "utf8").catch(() => undefined);
-  if (existing !== undefined && !existing.includes(marker(options.platform))) {
+  const inspection = await inspectShim(options);
+  const file = inspection.file;
+  if (inspection.status === "foreign") {
     return {
       ok: false,
       error: `${file} exists but is not managed by Claudex; refusing to overwrite it. Remove or rename the conflicting launcher first.`,
     };
+  }
+  if (inspection.status === "blocked") {
+    return { ok: false, error: inspection.error };
   }
 
   await mkdir(options.binDir, { recursive: true });
@@ -73,17 +126,19 @@ export interface RemoveShimOptions {
 }
 
 export async function removeShim(options: RemoveShimOptions): Promise<ShimResult> {
-  const file = join(options.binDir, shimFileName(options.platform));
-  const existing = await readFile(file, "utf8").catch(() => undefined);
-  if (existing === undefined) {
+  const inspection = await inspectShim(options);
+  if (inspection.status === "absent") {
     return { ok: true };
   }
-  if (!existing.includes(marker(options.platform))) {
+  if (inspection.status === "blocked") {
+    return { ok: false, error: inspection.error };
+  }
+  if (inspection.status === "foreign") {
     return {
       ok: false,
-      error: `${file} is not managed by Claudex; refusing to remove an unrelated executable.`,
+      error: `${inspection.file} is not managed by Claudex; refusing to remove an unrelated executable.`,
     };
   }
-  await rm(file, { force: true });
+  await rm(inspection.file, { force: true });
   return { ok: true };
 }

@@ -123,7 +123,7 @@ test("access_denied failures map to a denied event", async () => {
   assert.equal(events[0]?.kind, "denied");
 });
 
-test("browser flow emits browser_prompt with the state from the printed URL", async () => {
+test("browser flow emits only a prompt and upstream callback-validation evidence", async () => {
   const { child, spawnedArgs, collect } = harness();
   const done = collect("browser");
   child.writeLine("Visit the following URL to continue authentication:");
@@ -133,17 +133,55 @@ test("browser flow emits browser_prompt with the state from the printed URL", as
   child.finish();
 
   const events = await done;
-  assert.deepEqual(events[0], {
-    kind: "browser_prompt",
-    authorizationUrl: "https://auth.openai.com/oauth/authorize?client_id=x&state=st4te-value",
-    state: "st4te-value",
-  });
-  assert.deepEqual(events[1], { kind: "persisted" });
+  assert.deepEqual(events, [
+    { kind: "browser_prompt" },
+    { kind: "browser_callback_validated" },
+    { kind: "persisted" },
+  ]);
   assert.deepEqual(spawnedArgs[0], [
     "--codex-login",
     "--config",
     "/fixtures/claudex/gateway-persistent.yaml",
   ]);
+});
+
+test("browser-open output does not require the sensitive authorization URL", async () => {
+  const { child, collect } = harness();
+  const done = collect("browser");
+  child.writeLine("Opening browser for Codex authentication");
+  child.writeLine("Waiting for Codex authentication callback...");
+  child.writeLine("Codex authentication successful!");
+  child.finish();
+
+  assert.deepEqual(await done, [
+    { kind: "browser_prompt" },
+    { kind: "browser_callback_validated" },
+    { kind: "persisted" },
+  ]);
+});
+
+test("browser flow maps an upstream state rejection without persisting", async () => {
+  const { child, collect } = harness();
+  const done = collect("browser");
+  child.writeLine("Codex authentication failed: OAuth state parameter is invalid");
+  child.finish();
+
+  const events = await done;
+  assert.equal(events[0]?.kind, "state_mismatch");
+  assert.ok(!events.some((event) => event.kind === "persisted"));
+});
+
+test("browser flow fails closed when the authorization URL has no state", async () => {
+  const { child, collect } = harness();
+  const done = collect("browser");
+  child.writeLine("Visit the following URL to continue authentication:");
+  child.writeLine("https://auth.openai.com/oauth/authorize?client_id=x");
+  child.writeLine("Codex authentication successful!");
+  child.finish();
+
+  const events = await done;
+  assert.equal(events[0]?.kind, "failed");
+  assert.ok(!events.some((event) => event.kind === "persisted"));
 });
 
 test("an aborted signal terminates the login process", async () => {

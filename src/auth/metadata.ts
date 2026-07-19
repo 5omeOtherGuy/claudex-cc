@@ -1,4 +1,5 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AuthValidator } from "./orchestrator.js";
 
@@ -15,13 +16,47 @@ export interface CredentialMetadata {
 
 async function credentialFiles(credentialsDir: string): Promise<string[]> {
   try {
-    const entries = await readdir(credentialsDir);
+    const entries = await readdir(credentialsDir, { withFileTypes: true });
     return entries
-      .filter((name) => name.endsWith(".json"))
-      .map((name) => join(credentialsDir, name));
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      .map((entry) => join(credentialsDir, entry.name));
   } catch {
     return [];
   }
+}
+
+async function secureCredentialPermissions(credentialsDir: string): Promise<void> {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const ownerUid = process.getuid?.();
+  if (ownerUid === undefined) {
+    throw new Error("credential ownership cannot be verified on this platform");
+  }
+  const noFollowFlags = constants.O_RDONLY | constants.O_NOFOLLOW;
+  const directory = await open(credentialsDir, noFollowFlags | constants.O_DIRECTORY);
+  try {
+    await directory.chmod(0o700);
+  } finally {
+    await directory.close();
+  }
+
+  const files = await credentialFiles(credentialsDir);
+  await Promise.all(
+    files.map(async (file) => {
+      const handle = await open(file, noFollowFlags);
+      try {
+        const info = await handle.stat();
+        if (!info.isFile() || info.nlink !== 1 || info.uid !== ownerUid) {
+          throw new Error("credential path is not a single owner-controlled regular file");
+        }
+        await handle.chmod(0o600);
+      } finally {
+        await handle.close();
+      }
+    }),
+  );
 }
 
 function isOwnerOnly(mode: number): boolean {
@@ -70,6 +105,14 @@ export function createFileValidator(
 ): AuthValidator {
   return {
     checkPersisted: async () => {
+      try {
+        await secureCredentialPermissions(credentialsDir);
+      } catch {
+        return {
+          ok: false,
+          detail: "Claudex could not enforce owner-only credential permissions.",
+        };
+      }
       const metadata = await inspectCredentialMetadata(credentialsDir);
       if (!metadata.present) {
         return { ok: false, detail: `No credential file found in ${credentialsDir}.` };
