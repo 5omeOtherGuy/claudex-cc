@@ -272,6 +272,25 @@ test("a foreign claudex launcher fails before setup mutates installation state",
   assert.equal(await readFile(fixture.paths.configFile, "utf8"), originalConfig);
 });
 
+test("a non-file claudex launcher path fails preflight", async () => {
+  const fixture = await makeFixture();
+  await mkdir(fixture.binDir, { recursive: true });
+  await mkdir(join(fixture.binDir, "claudex"));
+
+  const report = await runSetupPreflight({
+    paths: fixture.paths,
+    platform: "linux",
+    arch: "x64",
+    binDir: fixture.binDir,
+    manifest: testManifest(),
+  });
+  const launcher = report.checks.find((check) => check.name === "launcher");
+
+  assert.equal(report.ok, false);
+  assert.equal(launcher?.status, "fail");
+  assert.match(launcher?.detail ?? "", /not a regular file/i);
+});
+
 test("session-mode config skips the service and still succeeds", async () => {
   const fixture = await makeFixture();
   await writeConfigWithMode(fixture, "session");

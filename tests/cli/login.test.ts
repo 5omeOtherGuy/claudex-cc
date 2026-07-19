@@ -102,7 +102,6 @@ test("browser login exposes only safe progress to the in-product workflow", asyn
   const paths = await makePaths();
   await installFakeGateway(paths);
   const progress: string[] = [];
-  const authorizationUrl = "https://auth.example.invalid/authorize?state=private-state";
 
   const result = await runLoginCommand({
     paths,
@@ -112,8 +111,8 @@ test("browser login exposes only safe progress to the in-product workflow", asyn
     driverFactory: () =>
       driverFrom(
         [
-          { kind: "browser_prompt", authorizationUrl, state: "private-state" },
-          { kind: "callback", state: "private-state" },
+          { kind: "browser_prompt" },
+          { kind: "browser_callback_validated" },
           { kind: "persisted" },
         ],
         () => persistFakeCredential(paths),

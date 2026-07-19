@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, link, mkdir, mkdtemp, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -66,6 +66,23 @@ test("credential normalization never follows symlinks", async (t) => {
   const target = join(dir, "..", "unrelated.json");
   await writeFile(target, FAKE_CREDENTIAL, { mode: 0o644 });
   await symlink(target, join(dir, "codex-linked.json"));
+
+  const validator = createFileValidator(dir, async () => ({ ok: true }));
+  const check = await validator.checkPersisted();
+
+  assert.equal(check.ok, false);
+  assert.equal((await stat(target)).mode & 0o777, 0o644);
+});
+
+test("credential normalization rejects hard links without changing their target", async (t) => {
+  if (process.platform === "win32") {
+    t.skip("POSIX hard-link and permission behavior differs on Windows");
+    return;
+  }
+  const dir = await makeCredentialsDir();
+  const target = join(dir, "..", "unrelated.json");
+  await writeFile(target, FAKE_CREDENTIAL, { mode: 0o644 });
+  await link(target, join(dir, "codex-linked.json"));
 
   const validator = createFileValidator(dir, async () => ({ ok: true }));
   const check = await validator.checkPersisted();

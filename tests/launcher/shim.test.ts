@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { installShim, removeShim, renderShim, shimFileName } from "../../src/launcher/shim.js";
+import {
+  inspectShim,
+  installShim,
+  removeShim,
+  renderShim,
+  shimFileName,
+} from "../../src/launcher/shim.js";
 
 async function makeBinDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "claudex-shim-"));
@@ -54,6 +60,18 @@ test("an existing unmanaged claudex executable is never overwritten", async () =
   assert.equal(result.ok, false);
   assert.ok(!result.ok && /not managed by claudex/i.test(result.error));
   assert.match(await readFile(file, "utf8"), /legacy launcher/);
+});
+
+test("a non-file launcher path is a preflight blocker", async () => {
+  const binDir = await makeBinDir();
+  await mkdir(join(binDir, "claudex"));
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.ok(inspection.status === "blocked" && /not a regular file/i.test(inspection.error));
+
+  const install = await installShim({ binDir, platform: "linux", managerEntry: ENTRY });
+  assert.equal(install.ok, false);
 });
 
 test("remove deletes only managed shims and is idempotent", async () => {

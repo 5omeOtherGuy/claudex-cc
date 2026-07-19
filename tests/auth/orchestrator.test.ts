@@ -132,16 +132,12 @@ test("entitlement failures surface as their own reason", async () => {
   assert.ok(!result.ok && result.reason === "entitlement");
 });
 
-test("browser flow rejects a callback whose state does not match", async () => {
+test("browser flow rejects persistence without callback-validation evidence", async () => {
   const paths = await makePaths();
   const result = await runLogin({
     paths,
     mode: "browser",
-    driver: driverOf([
-      { kind: "browser_prompt", authorizationUrl: "https://auth.example.invalid/a", state: "s1" },
-      { kind: "callback", state: "s2" },
-      { kind: "persisted" },
-    ]),
+    driver: driverOf([{ kind: "browser_prompt" }, { kind: "persisted" }]),
     validator: passingValidator,
   });
 
@@ -149,14 +145,14 @@ test("browser flow rejects a callback whose state does not match", async () => {
   assert.ok(!result.ok && result.reason === "state_mismatch");
 });
 
-test("browser flow accepts the matching state and completes", async () => {
+test("browser flow accepts upstream callback-validation evidence", async () => {
   const paths = await makePaths();
   const result = await runLogin({
     paths,
     mode: "browser",
     driver: driverOf([
-      { kind: "browser_prompt", authorizationUrl: "https://auth.example.invalid/a", state: "s1" },
-      { kind: "callback", state: "s1" },
+      { kind: "browser_prompt" },
+      { kind: "browser_callback_validated" },
       { kind: "persisted" },
     ]),
     validator: passingValidator,
