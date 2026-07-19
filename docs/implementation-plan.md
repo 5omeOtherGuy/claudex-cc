@@ -87,7 +87,8 @@ without exposing callback material.
 **Definition of done:**
 
 - Browser flow is the in-product default, reports only bounded redacted progress,
-  and validates callback state for one active attempt.
+  and accepts success only after the pinned gateway validates the real callback
+  state for that active attempt.
 - Device flow remains available as an interactive-terminal fallback for
   headless sessions.
 - OAuth success requires persistence plus an authenticated validation request.

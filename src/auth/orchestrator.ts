@@ -10,8 +10,9 @@ export type LoginEvent =
       readonly verificationUrl: string;
       readonly expiresInSeconds: number;
     }
-  | { readonly kind: "browser_prompt"; readonly authorizationUrl: string; readonly state: string }
-  | { readonly kind: "callback"; readonly state: string }
+  | { readonly kind: "browser_prompt" }
+  | { readonly kind: "browser_callback_validated" }
+  | { readonly kind: "state_mismatch"; readonly detail: string }
   | { readonly kind: "persisted" }
   | { readonly kind: "denied"; readonly detail: string }
   | { readonly kind: "entitlement_error"; readonly detail: string }
@@ -104,7 +105,7 @@ export async function runLogin(options: LoginOptions): Promise<LoginResult> {
   const signal = controller.signal;
 
   try {
-    let expectedState: string | undefined;
+    let browserCallbackValidated = mode !== "browser";
     let persisted = false;
 
     const iterate = async (): Promise<LoginResult | undefined> => {
@@ -116,16 +117,21 @@ export async function runLogin(options: LoginOptions): Promise<LoginResult> {
             );
             break;
           case "browser_prompt":
-            expectedState = event.state;
             progress("Complete the sign-in in the browser window that just opened.");
             break;
-          case "callback":
-            if (event.state !== expectedState) {
-              return failure("state_mismatch");
-            }
-            progress("Callback received; finishing sign-in.");
+          case "browser_callback_validated":
+            browserCallbackValidated = true;
+            progress("Callback validated; finishing sign-in.");
             break;
+          case "state_mismatch":
+            return failure("state_mismatch", event.detail);
           case "persisted":
+            if (!browserCallbackValidated) {
+              return failure(
+                "state_mismatch",
+                "Browser login ended without callback-state validation evidence.",
+              );
+            }
             persisted = true;
             return undefined;
           case "denied":

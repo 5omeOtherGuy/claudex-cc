@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assertEmbeddablePath } from "../security/permissions.js";
 
@@ -51,13 +51,38 @@ export interface InspectShimOptions {
 export type ShimInspection =
   | { readonly status: "absent"; readonly file: string }
   | { readonly status: "managed"; readonly file: string }
-  | { readonly status: "foreign"; readonly file: string };
+  | { readonly status: "foreign"; readonly file: string }
+  | { readonly status: "blocked"; readonly file: string; readonly error: string };
 
 export async function inspectShim(options: InspectShimOptions): Promise<ShimInspection> {
   const file = join(options.binDir, shimFileName(options.platform));
-  const existing = await readFile(file, "utf8").catch(() => undefined);
-  if (existing === undefined) {
-    return { status: "absent", file };
+  let info: Awaited<ReturnType<typeof lstat>>;
+  try {
+    info = await lstat(file);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { status: "absent", file };
+    }
+    return { status: "blocked", file, error: `${file} cannot be inspected safely.` };
+  }
+  if (!info.isFile()) {
+    return { status: "blocked", file, error: `${file} is not a regular file.` };
+  }
+
+  let existing: string;
+  try {
+    const handle = await open(file, "r");
+    try {
+      const opened = await handle.stat();
+      if (!opened.isFile() || opened.dev !== info.dev || opened.ino !== info.ino) {
+        return { status: "blocked", file, error: `${file} changed during inspection.` };
+      }
+      existing = await handle.readFile("utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return { status: "blocked", file, error: `${file} is not readable.` };
   }
   return existing.includes(marker(options.platform))
     ? { status: "managed", file }
@@ -79,6 +104,9 @@ export async function installShim(options: InstallShimOptions): Promise<ShimResu
       error: `${file} exists but is not managed by Claudex; refusing to overwrite it. Remove or rename the conflicting launcher first.`,
     };
   }
+  if (inspection.status === "blocked") {
+    return { ok: false, error: inspection.error };
+  }
 
   await mkdir(options.binDir, { recursive: true });
   const tempFile = `${file}.tmp`;
@@ -94,17 +122,19 @@ export interface RemoveShimOptions {
 }
 
 export async function removeShim(options: RemoveShimOptions): Promise<ShimResult> {
-  const file = join(options.binDir, shimFileName(options.platform));
-  const existing = await readFile(file, "utf8").catch(() => undefined);
-  if (existing === undefined) {
+  const inspection = await inspectShim(options);
+  if (inspection.status === "absent") {
     return { ok: true };
   }
-  if (!existing.includes(marker(options.platform))) {
+  if (inspection.status === "blocked") {
+    return { ok: false, error: inspection.error };
+  }
+  if (inspection.status === "foreign") {
     return {
       ok: false,
-      error: `${file} is not managed by Claudex; refusing to remove an unrelated executable.`,
+      error: `${inspection.file} is not managed by Claudex; refusing to remove an unrelated executable.`,
     };
   }
-  await rm(file, { force: true });
+  await rm(inspection.file, { force: true });
   return { ok: true };
 }

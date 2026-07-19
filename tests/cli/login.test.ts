@@ -110,11 +110,7 @@ test("browser login exposes only safe progress to the in-product workflow", asyn
     onProgress: (line) => progress.push(line),
     driverFactory: () =>
       driverFrom(
-        [
-          { kind: "browser_prompt" },
-          { kind: "browser_callback_validated" },
-          { kind: "persisted" },
-        ],
+        [{ kind: "browser_prompt" }, { kind: "browser_callback_validated" }, { kind: "persisted" }],
         () => persistFakeCredential(paths),
       ),
     probe: async () => ({ ok: true }),

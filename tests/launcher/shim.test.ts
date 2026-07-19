@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -72,6 +72,22 @@ test("a non-file launcher path is a preflight blocker", async () => {
 
   const install = await installShim({ binDir, platform: "linux", managerEntry: ENTRY });
   assert.equal(install.ok, false);
+});
+
+test("an unreadable launcher path is a preflight blocker", async (t) => {
+  if (process.platform === "win32" || process.getuid?.() === 0) {
+    t.skip("owner-mode readability is not deterministic on this host");
+    return;
+  }
+  const binDir = await makeBinDir();
+  const file = join(binDir, "claudex");
+  await writeFile(file, "#!/bin/sh\necho blocked\n", { mode: 0o000 });
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.ok(inspection.status === "blocked" && /not readable/i.test(inspection.error));
+
+  await chmod(file, 0o600);
 });
 
 test("remove deletes only managed shims and is idempotent", async () => {

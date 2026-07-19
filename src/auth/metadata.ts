@@ -1,4 +1,5 @@
-import { chmod, readdir, readFile, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AuthValidator } from "./orchestrator.js";
 
@@ -28,12 +29,34 @@ async function secureCredentialPermissions(credentialsDir: string): Promise<void
   if (process.platform === "win32") {
     return;
   }
-  const files = await credentialFiles(credentialsDir);
-  if (files.length === 0) {
-    return;
+
+  const ownerUid = process.getuid?.();
+  if (ownerUid === undefined) {
+    throw new Error("credential ownership cannot be verified on this platform");
   }
-  await chmod(credentialsDir, 0o700);
-  await Promise.all(files.map((file) => chmod(file, 0o600)));
+  const noFollowFlags = constants.O_RDONLY | constants.O_NOFOLLOW;
+  const directory = await open(credentialsDir, noFollowFlags | constants.O_DIRECTORY);
+  try {
+    await directory.chmod(0o700);
+  } finally {
+    await directory.close();
+  }
+
+  const files = await credentialFiles(credentialsDir);
+  await Promise.all(
+    files.map(async (file) => {
+      const handle = await open(file, noFollowFlags);
+      try {
+        const info = await handle.stat();
+        if (!info.isFile() || info.nlink !== 1 || info.uid !== ownerUid) {
+          throw new Error("credential path is not a single owner-controlled regular file");
+        }
+        await handle.chmod(0o600);
+      } finally {
+        await handle.close();
+      }
+    }),
+  );
 }
 
 function isOwnerOnly(mode: number): boolean {

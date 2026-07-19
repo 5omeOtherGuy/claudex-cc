@@ -249,21 +249,28 @@ export async function runSetupPreflight(
 
   const launcher = await inspectShim({ binDir: options.binDir, platform: options.platform });
   checks.push(
-    launcher.status === "foreign"
+    launcher.status === "blocked"
       ? {
           name: "launcher",
           status: "fail",
-          detail: `${launcher.file} exists but is not managed by Claudex.`,
-          remediation: "Back up or rename the existing launcher, then run preflight again.",
+          detail: launcher.error,
+          remediation: "Move the blocking path aside, then run preflight again.",
         }
-      : {
-          name: "launcher",
-          status: "pass",
-          detail:
-            launcher.status === "managed"
-              ? "Existing Claudex-managed launcher can be updated."
-              : "Launcher destination is available.",
-        },
+      : launcher.status === "foreign"
+        ? {
+            name: "launcher",
+            status: "fail",
+            detail: `${launcher.file} exists but is not managed by Claudex.`,
+            remediation: "Back up or rename the existing launcher, then run preflight again.",
+          }
+        : {
+            name: "launcher",
+            status: "pass",
+            detail:
+              launcher.status === "managed"
+                ? "Existing Claudex-managed launcher can be updated."
+                : "Launcher destination is available.",
+          },
   );
 
   checks.push(
