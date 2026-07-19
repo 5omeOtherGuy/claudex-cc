@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -72,6 +72,21 @@ test("a non-file launcher path is a preflight blocker", async () => {
 
   const install = await installShim({ binDir, platform: "linux", managerEntry: ENTRY });
   assert.equal(install.ok, false);
+});
+
+test("launcher inspection never follows symlinks", async (t) => {
+  if (process.platform === "win32") {
+    t.skip("creating symlinks requires elevated privileges on some Windows hosts");
+    return;
+  }
+  const binDir = await makeBinDir();
+  const target = join(binDir, "managed-looking-target");
+  await writeFile(target, "# Managed by Claudex\n");
+  await symlink(target, join(binDir, "claudex"));
+
+  const inspection = await inspectShim({ binDir, platform: "linux" });
+  assert.equal(inspection.status, "blocked");
+  assert.equal(await readFile(target, "utf8"), "# Managed by Claudex\n");
 });
 
 test("an unreadable launcher path is a preflight blocker", async (t) => {

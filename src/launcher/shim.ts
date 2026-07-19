@@ -1,3 +1,4 @@
+import { constants } from "node:fs";
 import { chmod, lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assertEmbeddablePath } from "../security/permissions.js";
@@ -56,37 +57,40 @@ export type ShimInspection =
 
 export async function inspectShim(options: InspectShimOptions): Promise<ShimInspection> {
   const file = join(options.binDir, shimFileName(options.platform));
-  let info: Awaited<ReturnType<typeof lstat>>;
+  const flags = constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW);
+  let handle: Awaited<ReturnType<typeof open>>;
   try {
-    info = await lstat(file);
+    handle = await open(file, flags);
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return { status: "absent", file };
     }
-    return { status: "blocked", file, error: `${file} cannot be inspected safely.` };
-  }
-  if (!info.isFile()) {
-    return { status: "blocked", file, error: `${file} is not a regular file.` };
+    const info = await lstat(file).catch(() => undefined);
+    return info !== undefined && !info.isFile()
+      ? { status: "blocked", file, error: `${file} is not a regular file.` }
+      : { status: "blocked", file, error: `${file} is not readable.` };
   }
 
-  let existing: string;
   try {
-    const handle = await open(file, "r");
-    try {
-      const opened = await handle.stat();
-      if (!opened.isFile() || opened.dev !== info.dev || opened.ino !== info.ino) {
+    const opened = await handle.stat();
+    if (!opened.isFile()) {
+      return { status: "blocked", file, error: `${file} is not a regular file.` };
+    }
+    if (process.platform === "win32") {
+      const pathInfo = await lstat(file);
+      if (!pathInfo.isFile() || pathInfo.dev !== opened.dev || pathInfo.ino !== opened.ino) {
         return { status: "blocked", file, error: `${file} changed during inspection.` };
       }
-      existing = await handle.readFile("utf8");
-    } finally {
-      await handle.close();
     }
+    const existing = await handle.readFile("utf8");
+    return existing.includes(marker(options.platform))
+      ? { status: "managed", file }
+      : { status: "foreign", file };
   } catch {
     return { status: "blocked", file, error: `${file} is not readable.` };
+  } finally {
+    await handle.close();
   }
-  return existing.includes(marker(options.platform))
-    ? { status: "managed", file }
-    : { status: "foreign", file };
 }
 
 export interface InstallShimOptions {
