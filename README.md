@@ -133,8 +133,9 @@ node --test --import tsx tests/gateway/manifest.test.ts # one test file
 `npm run check` runs lint and format checks, a secret scan, type checking, the
 tests, the build, plugin validation, and a pack dry run; CI runs the same
 command in the `gate` job. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the
-worktree and pull request workflow, and
-[`docs/architecture/overview.md`](docs/architecture/overview.md) for the design.
+worktree and pull request workflow,
+[`docs/architecture/overview.md`](docs/architecture/overview.md) for the design,
+and [`docs/technology-stack.md`](docs/technology-stack.md) for the toolchain.
 
 ## Contributing, support, and security
 
