@@ -61,8 +61,9 @@ unless `--force` is explicitly provided.
 
 ## Verification
 
-`npm run check` runs formatting/lint checks, TypeScript validation, deterministic
-tests, a production build, plugin structure validation, and a package dry run.
+`npm run check` is the gate. It runs formatting/lint checks, a secret scan,
+TypeScript validation, deterministic tests, a production build, plugin structure
+validation, and a package dry run. CI runs the same command in the `gate` job.
 
 Live OAuth and model calls are never part of normal CI. A future protected manual
 workflow will own bounded compatibility smoke tests.
