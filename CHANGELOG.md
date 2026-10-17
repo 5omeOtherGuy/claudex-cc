@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Codex device/browser OAuth orchestration with fail-closed validation.
 - Persistent (systemd user service) and per-session gateway lifecycles with
   the stable `claudex` launcher.
+- macOS support: LaunchAgent and session-mode lifecycles ([#37]).
+- Windows support: session mode and a stable launcher under
+  `%LOCALAPPDATA%\claudex\bin` ([#38]).
+- Tag-triggered release workflow with `SHA256SUMS.txt`, a CycloneDX SBOM, and
+  build provenance, plus a manual protected live compatibility workflow
+  ([#39]).
 - Redacted status and doctor diagnostics with drift detection and guided
   relaunch messaging.
 - Deterministic CI, security workflows, and worktree tooling.
@@ -34,3 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/release/promotion.test.ts`).
 
 [Unreleased]: https://github.com/5omeOtherGuy/claudex-cc/commits/main
+[#37]: https://github.com/5omeOtherGuy/claudex-cc/pull/37
+[#38]: https://github.com/5omeOtherGuy/claudex-cc/pull/38
+[#39]: https://github.com/5omeOtherGuy/claudex-cc/pull/39

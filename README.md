@@ -37,7 +37,8 @@ Claude Code plugin ──manages──▶ stable claudex launcher
 
 ## Installation
 
-Until the first marketplace release, install from a packed checkout:
+Claudex has no plugin marketplace entry yet, so install it from a checkout of
+this repository:
 
 ```bash
 git clone https://github.com/5omeOtherGuy/claudex-cc.git
