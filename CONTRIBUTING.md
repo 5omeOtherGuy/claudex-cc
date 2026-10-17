@@ -21,8 +21,13 @@
 git clone https://github.com/5omeOtherGuy/claudex-cc.git
 cd claudex-cc
 npm ci
+git config core.hooksPath .githooks
 npm run check
 ```
+
+The `pre-push` hook in `.githooks/` runs `npm run check` before every push and
+refuses direct pushes to `main`. In an Amp orb, `.agents/setup` installs the
+locked dependencies and enables the hook.
 
 ## Worktree workflow
 

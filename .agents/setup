@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Orb setup: idempotent. Checks the Node toolchain, installs the locked
+# dependencies, enables the repository hooks, and reports which credentials
+# are present without printing them.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+required=$(cat .nvmrc)
+current=$(node -p 'process.versions.node')
+if ! node -e '
+  const [a, b] = process.argv.slice(1).map((v) => v.split(".").map(Number));
+  process.exit(a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] >= b[2]))) ? 0 : 1);
+' "$current" "$required"; then
+  echo "setup: Node $current is older than the required $required (.nvmrc)." >&2
+  exit 1
+fi
+
+npm ci --no-audit --no-fund --loglevel=error
+git config core.hooksPath .githooks
+
+for name in GH_TOKEN GITHUB_TOKEN; do
+  if [ -n "${!name:-}" ]; then
+    echo "setup: $name is set."
+  else
+    echo "setup: $name is not set."
+  fi
+done
+echo "setup: live checks need no local credentials; they run only in the protected live-compat workflow."
