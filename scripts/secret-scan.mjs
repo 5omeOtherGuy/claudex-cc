@@ -10,30 +10,42 @@ const RULES = [
   ["GitHub token", /\b(?:gh[opusr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,})\b/],
   ["OpenAI or Anthropic key", /\bsk-(?:proj-|ant-[a-z0-9]+-)?[A-Za-z0-9_-]{20,}/],
   ["AWS access key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
-  ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/],
+  ["Google API key", /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/],
   ["Slack token", /\bxox[abposr]-[A-Za-z0-9-]{10,}/],
   ["npm token", /\bnpm_[A-Za-z0-9]{36}\b/],
   ["JSON Web Token", /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/],
 ];
 
-const files = execFileSync(
-  "git",
-  ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-  {
+// Fixed diagnostics only: Git's stderr and Node error messages can echo file
+// content or configuration values, so they are never forwarded.
+function fail(message) {
+  process.stderr.write(`secret-scan: ${message}\n`);
+  process.exit(2);
+}
+
+let listing;
+try {
+  listing = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
-  },
-)
-  .split("\0")
-  .filter((file) => file.length > 0);
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+} catch {
+  fail("could not list the checkout's files with git; run it inside a Git work tree.");
+}
+const files = listing.split("\0").filter((file) => file.length > 0);
 
 const findings = [];
 for (const file of files) {
   let content;
   try {
     content = readFileSync(file);
-  } catch {
-    continue; // deleted in the working tree, or a dangling symlink
+  } catch (error) {
+    const code = error?.code;
+    if (code === "ENOENT" || code === "EISDIR") {
+      continue; // deleted in the work tree, a dangling symlink, or a submodule
+    }
+    fail(`could not read ${file} (${typeof code === "string" ? code : "unknown error"}).`);
   }
   if (content.includes(0)) {
     continue; // binary
