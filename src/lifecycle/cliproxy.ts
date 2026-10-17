@@ -26,9 +26,9 @@ function assertBoundedInteger(value: number, min: number, max: number, name: str
 
 /**
  * Renders the per-session CLIProxyAPI configuration. Key names use the legacy
- * (pre-v8) layout, which v8 still loads as written; it rewrites a file into the
- * v8 layout only after a management API write, and management stays disabled.
- * The gateway stays loopback-only and telemetry stays off.
+ * (pre-v8) layout, which v8 still loads with the same meaning and leaves
+ * unchanged at startup. The gateway stays loopback-only, management stays
+ * disabled, and telemetry stays off.
  */
 export function renderSessionConfig(
   request: Pick<LaunchRequest, "host" | "port" | "clientSecret" | "paths"> & {

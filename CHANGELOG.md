@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Gateway pin
 
 - CLIProxyAPI 8.0.32 (commit `911f49cb`) is the pinned, checksum-verified
-  gateway release, replacing 7.2.86 (commit `81d70f5d`). An offline review
+  gateway release, replacing 7.2.86 (commit `81d70f5d`). A credential-free review
   found no change to the configuration keys, flags, login output, endpoints,
   or asset names Claudex depends on; the live promotion run is still pending.
   Existing installs move with `claudex-pluginctl update`, and `rollback`

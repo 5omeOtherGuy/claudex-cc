@@ -78,7 +78,7 @@ working ones. Expect beta-gated behavior to be absent through the gateway.
 
 - Claude Code 2.1.214
 - CLIProxyAPI 8.0.32 (`911f49cb`), promoted from 7.2.86 (`81d70f5d`) after
-  the offline review in [the compatibility matrix](../compatibility-matrix.md)
+  the credential-free review in [the compatibility matrix](../compatibility-matrix.md)
 - OAuth catalog context treated as 372,000 tokens
 - conservative compaction target around 230,000 tokens
 - proxy-side maximum output target 32,768 tokens
