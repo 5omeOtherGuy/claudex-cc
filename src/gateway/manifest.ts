@@ -36,9 +36,9 @@ function artifact(
   };
 }
 
-// Hashes are transcribed from the upstream v7.2.86 checksums.txt release asset
-// and additionally verified against a downloaded linux/amd64 archive.
-const VERSION = "7.2.86";
+// Hashes are transcribed from the upstream v8.0.32 checksums.txt release asset
+// and additionally verified against all six downloaded archives.
+const VERSION = "8.0.32";
 
 export const GATEWAY_MANIFEST: GatewayManifest = {
   version: VERSION,
@@ -46,42 +46,42 @@ export const GATEWAY_MANIFEST: GatewayManifest = {
     "linux-x64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_linux_amd64.tar.gz`,
-      "f1827a374e07c30cb41754a16351f15323e94e030fa2fcec271dc6d717528044",
+      "082a4a38d9470c070ac85ab2d9c4a2aa51f9a7ee19831c3b811e26fe5b7480a7",
       "tar.gz",
       "cli-proxy-api",
     ),
     "linux-arm64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_linux_aarch64.tar.gz`,
-      "2bae5b54bf84ac18131234ebc8242ea796944ac412e54edccc1984b2db3bdeaf",
+      "76aac452dd224490ea5ea1ea0224199d7a410f14ef39a087b81893d15c62f363",
       "tar.gz",
       "cli-proxy-api",
     ),
     "darwin-x64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_darwin_amd64.tar.gz`,
-      "3712d64259c0e2023305665b52083b6dcf6956f44b51dd2a0626f5b538d5cb50",
+      "c327f421d995692f6590a752abd449db5e71df61803b7041e4d3bd59cd1e1bd8",
       "tar.gz",
       "cli-proxy-api",
     ),
     "darwin-arm64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_darwin_aarch64.tar.gz`,
-      "1c8cc23e183a4f6a5095b77aa268dbe555e7268580c7251031e8b5c16f1f7508",
+      "48fe6a391a01e730ee6ebe3f1609ff92578a97a7a9a44579013ca8f3a6d58d51",
       "tar.gz",
       "cli-proxy-api",
     ),
     "win32-x64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_windows_amd64.zip`,
-      "4d7b9a62070f6c95f139dd2b41ef4cc4f44af9bb1a11897e928131ba42707e32",
+      "df364b1f2dc9fe357f6a481bfb8a4066c3e5f5ef4ad7abfe45e59b4cec547c18",
       "zip",
       "cli-proxy-api.exe",
     ),
     "win32-arm64": artifact(
       VERSION,
       `CLIProxyAPI_${VERSION}_windows_aarch64.zip`,
-      "679059a673f2fcadda596eeb9e1b7dbab6bdde74a9aff291418c6f4012e74986",
+      "9e83b3f19f3359b52a1fe7acc763ed9285698a46d49caec650943d5b67e82010",
       "zip",
       "cli-proxy-api.exe",
     ),

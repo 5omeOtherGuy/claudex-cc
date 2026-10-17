@@ -55,7 +55,7 @@ export const DEFAULT_CONFIG: ClaudexConfig = {
   },
   gateway: {
     implementation: "cliproxyapi",
-    version: "7.2.86",
+    version: "8.0.32",
     updateChannel: "pinned",
   },
   models: {
