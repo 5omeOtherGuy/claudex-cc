@@ -23,7 +23,6 @@ async function makePaths(): Promise<ClaudexPaths> {
 
 function driverOf(events: readonly LoginEvent[]): LoginDriver {
   return {
-    // biome-ignore lint/correctness/useYield: sync fixture
     async *start() {
       for (const event of events) {
         yield event;
