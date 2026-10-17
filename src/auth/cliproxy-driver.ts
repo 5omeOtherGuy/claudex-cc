@@ -22,8 +22,9 @@ const defaultSpawn: LoginSpawn = (binaryFile, args) =>
   spawn(binaryFile, [...args], { stdio: ["ignore", "pipe", "pipe"] });
 
 // Output contract of the pinned CLIProxyAPI release (sdk/auth/codex_device.go,
-// sdk/auth/codex.go, internal/cmd/openai_*login.go at v7.2.86). The login
-// process exits 0 even on failure, so only these lines decide the outcome.
+// sdk/auth/codex.go, internal/cmd/openai_*login.go; unchanged from v7.2.86
+// through v8.0.32). The login process exits 0 even on failure, so only these
+// lines decide the outcome.
 const DEVICE_URL_LINE = /^Codex device URL: (\S+)/;
 const DEVICE_CODE_LINE = /^Codex device code: (\S+)/;
 const OPENING_BROWSER_LINE = "Opening browser for Codex authentication";

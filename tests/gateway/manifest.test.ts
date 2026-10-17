@@ -21,12 +21,12 @@ test("every artifact is pinned to an https URL and a SHA-256 hash", () => {
 
 test("supported platform pairs resolve to their artifact", () => {
   const cases: ReadonlyArray<readonly [string, string, string]> = [
-    ["linux", "x64", "CLIProxyAPI_7.2.86_linux_amd64.tar.gz"],
-    ["linux", "arm64", "CLIProxyAPI_7.2.86_linux_aarch64.tar.gz"],
-    ["darwin", "x64", "CLIProxyAPI_7.2.86_darwin_amd64.tar.gz"],
-    ["darwin", "arm64", "CLIProxyAPI_7.2.86_darwin_aarch64.tar.gz"],
-    ["win32", "x64", "CLIProxyAPI_7.2.86_windows_amd64.zip"],
-    ["win32", "arm64", "CLIProxyAPI_7.2.86_windows_aarch64.zip"],
+    ["linux", "x64", "CLIProxyAPI_8.0.32_linux_amd64.tar.gz"],
+    ["linux", "arm64", "CLIProxyAPI_8.0.32_linux_aarch64.tar.gz"],
+    ["darwin", "x64", "CLIProxyAPI_8.0.32_darwin_amd64.tar.gz"],
+    ["darwin", "arm64", "CLIProxyAPI_8.0.32_darwin_aarch64.tar.gz"],
+    ["win32", "x64", "CLIProxyAPI_8.0.32_windows_amd64.zip"],
+    ["win32", "arm64", "CLIProxyAPI_8.0.32_windows_aarch64.zip"],
   ];
   for (const [platform, arch, assetName] of cases) {
     const result = selectArtifact(GATEWAY_MANIFEST, platform, arch);

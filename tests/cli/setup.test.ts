@@ -19,18 +19,20 @@ import type { SystemctlRunner } from "../../src/lifecycle/systemd.js";
 import type { ClaudexPaths } from "../../src/platform/paths.js";
 
 const ARCHIVE_BYTES = Buffer.from("fake-gateway-archive");
+// Setup refuses a manifest that differs from the default config pin.
+const PINNED_VERSION = DEFAULT_CONFIG.gateway.version;
 
 function testManifest(overrides?: { sha256?: string }): GatewayManifest {
   const sha256 = overrides?.sha256 ?? createHash("sha256").update(ARCHIVE_BYTES).digest("hex");
   const artifact = (assetName: string) => ({
     assetName,
-    url: `https://example.invalid/v7.2.86/${assetName}`,
+    url: `https://example.invalid/v${PINNED_VERSION}/${assetName}`,
     sha256,
     archive: "tar.gz" as const,
     binaryName: "cli-proxy-api",
   });
   return {
-    version: "7.2.86",
+    version: PINNED_VERSION,
     artifacts: {
       "linux-x64": artifact("gw_linux_amd64.tar.gz"),
       "darwin-arm64": artifact("gw_darwin_aarch64.tar.gz"),
@@ -158,7 +160,7 @@ test("setup preflight reports deterministic blockers and warnings before install
 async function writeConfigWithMode(
   fixture: Fixture,
   mode: "persistent" | "session",
-  gatewayVersion = "7.2.86",
+  gatewayVersion = PINNED_VERSION,
 ): Promise<void> {
   await mkdir(fixture.paths.configDir, { recursive: true });
   const config = {
@@ -197,7 +199,7 @@ test("setup installs config, gateway, service, and shim end to end", skipOnWindo
   assert.equal(config.configVersion, 2);
 
   const active = await getActiveGateway(fixture.paths);
-  assert.equal(active?.version, "7.2.86");
+  assert.equal(active?.version, PINNED_VERSION);
   await stat(active?.binaryFile ?? "");
 
   const gatewayConfig = await readFile(

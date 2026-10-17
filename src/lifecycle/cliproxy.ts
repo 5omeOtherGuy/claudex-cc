@@ -25,9 +25,10 @@ function assertBoundedInteger(value: number, min: number, max: number, name: str
 }
 
 /**
- * Renders the per-session CLIProxyAPI configuration. Key names follow the
- * upstream config.example.yaml of the pinned release. The gateway stays
- * loopback-only, management stays local, and telemetry stays off.
+ * Renders the per-session CLIProxyAPI configuration. Key names use the legacy
+ * (pre-v8) layout, which v8 still loads as written; it rewrites a file into the
+ * v8 layout only after a management API write, and management stays disabled.
+ * The gateway stays loopback-only and telemetry stays off.
  */
 export function renderSessionConfig(
   request: Pick<LaunchRequest, "host" | "port" | "clientSecret" | "paths"> & {

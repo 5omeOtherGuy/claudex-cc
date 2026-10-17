@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validated versioned configuration with atomic persistence, presets
   (compatibility / balanced / max-reasoning), context-headroom rules, and a
   bounded gateway request policy.
-- Pinned gateway management for CLIProxyAPI 7.2.86: checksum-verified
+- Pinned gateway management for CLIProxyAPI 8.0.32: checksum-verified
   install, atomic activation, staged smoke-gated updates, and one-command
   rollback (`claudex-pluginctl rollback`).
 - Codex device/browser OAuth orchestration with fail-closed validation.
@@ -34,8 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Gateway pin
 
-- CLIProxyAPI 7.2.86 (commit `81d70f5d`) is the pinned, checksum-verified
-  gateway release. Promotion of a newer release requires updating
+- CLIProxyAPI 8.0.32 (commit `911f49cb`) is the pinned, checksum-verified
+  gateway release, replacing 7.2.86 (commit `81d70f5d`). An offline review
+  found no change to the configuration keys, flags, login output, endpoints,
+  or asset names Claudex depends on; the live promotion run is still pending.
+  Existing installs move with `claudex-pluginctl update`, and `rollback`
+  returns to 7.2.86. See `docs/compatibility-matrix.md`.
+- Promotion of a newer release requires updating
   `docs/compatibility-matrix.md` and this changelog (enforced by
   `tests/release/promotion.test.ts`).
 
