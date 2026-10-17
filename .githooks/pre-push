@@ -18,6 +18,12 @@ done
 
 [ "$pushes_commits" = 1 ] || exit 0
 
+# Git exports GIT_DIR and related variables to hooks; the gate must not
+# inherit them, or git commands in its tests act on this repository.
+for var in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do
+	unset "$var"
+done
+
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 if ! npm run check >"$log" 2>&1; then
