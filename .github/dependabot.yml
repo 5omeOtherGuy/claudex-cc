@@ -36,3 +36,15 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    groups:
+      # init and analyze must run the same CodeQL version; separate PRs for
+      # each step always fail the CodeQL check.
+      codeql-action:
+        patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
+      codeql-action-security:
+        applies-to: security-updates
+        patterns:
+          - "github/codeql-action"
+          - "github/codeql-action/*"
