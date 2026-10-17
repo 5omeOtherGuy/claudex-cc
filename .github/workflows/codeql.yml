@@ -9,8 +9,10 @@ on:
     - cron: "24 5 * * 1"
   workflow_dispatch:
 
+# Superseded PR runs are cancelled. Every other run gets its own group, so a
+# push to main is never cancelled or replaced while pending.
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: codeql-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
