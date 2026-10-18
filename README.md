@@ -1,29 +1,29 @@
 # Claudex
 
-Claudex is a Claude Code plugin and launcher that manages a secure,
-localhost-only gateway for running Codex subscription models in Claude Code:
-guided setup, device/browser OAuth, per-session or persistent gateway
-lifecycles, staged checksum-verified updates with rollback, and redacted
-diagnostics — all driven by one deterministic control CLI.
+Run Codex subscription models in Claude Code through a managed localhost gateway with OAuth, diagnostics, updates, and rollback.
 
-> [!IMPORTANT]
-> Claudex is unofficial and pre-release (no tagged release yet). See the
-> [security and support boundary](#security-and-support-boundary) below.
+Status: pre-release. Usable from a checkout, with no tagged release yet;
+commands and configuration may still change without notice.
 
-## Why this architecture
+[![CI](https://github.com/5omeOtherGuy/claudex-cc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/5omeOtherGuy/claudex-cc/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+## What it does
+
+Claudex is a Claude Code plugin and launcher. It installs and runs a pinned,
+checksum-verified [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
+gateway on `127.0.0.1`, signs you in to Codex with browser or device OAuth, and
+starts Claude Code with that gateway as its model provider. Updates are staged
+and smoke-tested with one-command rollback, and every diagnostic is redacted.
 
 Claude Code plugins can add skills, agents, hooks, MCP servers, and executables,
-but they cannot register a primary model provider or replace the current
-session's model transport. Claudex therefore has two cooperating layers:
+but they cannot register a primary model provider or change the transport of a
+running session. Claudex therefore has two cooperating layers:
 
 1. a Claude Code plugin for setup, configuration, diagnostics, updates, and
    guided relaunch;
-2. a stable pre-launch manager that starts a pinned Anthropic-compatible gateway
-   and supplies the required environment before Claude Code starts.
-
-The gateway implementation is a checksum-verified, pinned
-[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) release. Building a
-new protocol translator is explicitly out of scope.
+2. a stable pre-launch manager that starts the gateway and supplies the model
+   environment before Claude Code starts.
 
 ```text
 Claude Code plugin ──manages──▶ stable claudex launcher
@@ -35,7 +35,20 @@ Claude Code plugin ──manages──▶ stable claudex launcher
                              Codex OAuth backend
 ```
 
-## Installation
+Normal `claude` sessions stay unchanged, and a running session never switches
+providers; only new `claudex` launches use the gateway. Replacing the sidecar
+with a translator built into Claudex requires a new ADR (see
+[ADR 0001](docs/adr/0001-managed-sidecar-architecture.md) and
+[`docs/roadmap.md`](docs/roadmap.md)).
+
+> [!IMPORTANT]
+> Claudex is unofficial. Anthropic does not support routing Claude Code to
+> non-Claude models through a gateway, and Claudex is not endorsed,
+> maintained, or audited by Anthropic, OpenAI, or the CLIProxyAPI maintainers.
+> Upstream terms, entitlement, quota, and protocol changes can affect
+> availability.
+
+## Install
 
 Claudex has no plugin marketplace entry yet, so install it from a checkout of
 this repository:
@@ -46,14 +59,21 @@ cd claudex-cc && npm ci && npm run build
 claude --plugin-dir "$(pwd)"
 ```
 
-Then, inside Claude Code, run `/claudex:setup` — it installs the pinned,
-checksum-verified gateway, the persistent service where available, and the
-stable `claudex` launcher (`~/.local/bin` on Linux/macOS,
-`%LOCALAPPDATA%\claudex\bin` on Windows; add it to `PATH` once). Setup opens the
-browser OAuth flow itself and verifies authentication before directing you to a
-new `claudex` session.
+## Usage
 
-## User experience
+Inside Claude Code, run `/claudex:setup`. It installs the pinned gateway, the
+persistent service where the platform has one, and the stable `claudex`
+launcher (`~/.local/bin` on Linux and macOS, `%LOCALAPPDATA%\claudex\bin` on
+Windows; add it to `PATH` once). Setup opens the browser OAuth flow and
+verifies authentication. Then start a new session from your terminal:
+
+```bash
+claudex
+```
+
+`claudex` checks that the gateway is installed, logged in, and healthy, sets
+the gateway and model environment for that process only, and launches Claude
+Code.
 
 ```text
 /claudex:setup      guided install and configuration menus
@@ -65,66 +85,67 @@ new `claudex` session.
 /claudex:uninstall  removal with an explicit credential decision
 ```
 
-`claudex` validates the local gateway (readiness ladder: installed →
-logged in → healthy), sets the gateway and model environment for that
-process only, and launches Claude Code. Normal `claude` sessions remain
-unchanged, and a running session never switches providers — only new
-`claudex` launches use the gateway.
+The skills call the control CLI, which also works directly from the checkout,
+for example `bin/claudex-pluginctl doctor --offline` or
+`bin/claudex-pluginctl status`. When something fails, start with those two and
+see [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
-Platform support: Linux (persistent systemd user service + session mode),
-macOS (LaunchAgent + session mode), Windows (session mode). Details:
-[`docs/platforms/macos.md`](docs/platforms/macos.md),
+## Configuration
+
+Use `/claudex:config`, or the CLI:
+
+```bash
+bin/claudex-pluginctl config show
+bin/claudex-pluginctl config preset            # list compatibility, balanced, max-reasoning
+bin/claudex-pluginctl config preset balanced
+bin/claudex-pluginctl config set reasoning.effort high
+bin/claudex-pluginctl config reset
+```
+
+Settings cover the runtime mode (`persistent` or `session`), the main,
+subagent, and fallback models, reasoning effort, context and output budgets,
+and retries. Every write is validated and atomic. Changes apply to the next
+`claudex` launch. The options and their trade-offs are described in
+[`docs/architecture/compatibility-boundary.md`](docs/architecture/compatibility-boundary.md).
+
+## Compatibility
+
+- Node.js 22.19 or newer.
+- Claude Code 2.1.214 with CLIProxyAPI 8.0.32 and the GPT-5.6 Sol, Terra, and
+  Luna models. Checked on 2026-10-17 with deterministic tests and a
+  credential-free gateway run; no live compatibility run has passed yet.
+- Linux (systemd user service or session mode), macOS (LaunchAgent or session
+  mode), and Windows (session mode).
+
+Details and the promotion gate are in
+[`docs/compatibility-matrix.md`](docs/compatibility-matrix.md); platform notes
+are in [`docs/platforms/macos.md`](docs/platforms/macos.md) and
 [`docs/platforms/windows.md`](docs/platforms/windows.md).
-
-## Troubleshooting
-
-Start with `claudex-pluginctl doctor --offline` (add `status` for launch
-readiness and drift). See [`docs/troubleshooting.md`](docs/troubleshooting.md)
-for the common failure modes and their remediations; every error message in
-the CLI names its remediation, and diagnostics are redacted by design.
-
-## Technology stack
-
-- Node.js 22.19+ and npm
-- strict TypeScript ESM with NodeNext module resolution
-- Node built-ins for filesystem, process, networking, hashing, and tests
-- Biome for formatting and linting
-- GitHub Actions on Linux, macOS, and Windows
-- a pinned upstream CLIProxyAPI binary as the gateway
-
-See [`docs/technology-stack.md`](docs/technology-stack.md) and
-[`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ## Development
 
 ```bash
 npm ci
-npm run check
+npm run check                                           # the gate
+node --test --import tsx tests/gateway/manifest.test.ts # one test file
 ```
 
-After the bootstrap commit, the primary checkout is control-only. New work starts
-in a task worktree:
+`npm run check` runs lint and format checks, a secret scan, type checking, the
+tests, the build, plugin validation, and a pack dry run; CI runs the same
+command in the `gate` job. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the
+worktree and pull request workflow,
+[`docs/architecture/overview.md`](docs/architecture/overview.md) for the design,
+and [`docs/technology-stack.md`](docs/technology-stack.md) for the toolchain.
 
-```bash
-npm run preflight
-git worktree add ../claudex-cc-123 -b feat/123-example origin/main
-```
+## Contributing, support, and security
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Security and support boundary
-
-Claudex handles executable downloads and OAuth-backed credentials. Never include
-credentials, callback URLs, prompt payloads, or raw authorization headers in
-issues or logs. Report vulnerabilities privately through
-[GitHub Security Advisories](https://github.com/5omeOtherGuy/claudex-cc/security/advisories/new).
-
-Anthropic does not support routing Claude Code to non-Claude models through a
-gateway. Claudex is unofficial and is not endorsed, maintained, or audited by
-Anthropic, OpenAI, or the CLIProxyAPI maintainers. Upstream terms, entitlement,
-quota, and protocol changes can affect availability.
+- Bugs, compatibility reports, and feature requests: [issues](https://github.com/5omeOtherGuy/claudex-cc/issues/new/choose).
+- Contributions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Vulnerabilities: report privately as described in [`SECURITY.md`](SECURITY.md).
+  Never include credentials, callback URLs, prompt payloads, or raw
+  authorization headers in issues or logs.
 
 ## License
 
-Claudex is licensed under the [MIT License](LICENSE). Third-party notices are in
+[MIT](LICENSE). Third-party notices are in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
