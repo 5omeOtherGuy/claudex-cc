@@ -7,7 +7,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-const run = promisify(execFile);
+const execFileAsync = promisify(execFile);
+// Git hooks export GIT_DIR and friends; without stripping them, git commands
+// in the temporary repositories would act on the caller's repository.
+const env = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
+);
+const run = (file: string, args: readonly string[], options: { cwd: string }) =>
+  execFileAsync(file, args, { ...options, env });
 const scanner = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
