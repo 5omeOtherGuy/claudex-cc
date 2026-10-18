@@ -1,12 +1,16 @@
-## Goal
+## Intent
 
-<!-- What user-visible or engineering outcome does this PR deliver? -->
+<!-- What user-visible or engineering outcome does this PR deliver, and why? -->
 
-## Changes
+## Changed behavior
 
-<!-- Concise implementation summary. -->
+<!-- What behaves differently after this PR? Say "none" for a pure refactor or docs fix. -->
 
-## Verification
+## Constraints touched
+
+<!-- Which product-boundary rules, security invariants, or ADRs in AGENTS.md and docs/adr/ does this touch, and how are they kept? Describe the security and compatibility impact: credential, executable, process, platform, or Claude Code/gateway implications. Say "none" where it applies. -->
+
+## Evidence
 
 - [ ] `npm run check`
 - [ ] Behavior changes have deterministic tests
@@ -15,9 +19,15 @@
 - [ ] Documentation and changelog are updated where needed
 - [ ] Compatibility matrix is updated when support changes
 
-## Security and compatibility impact
+<!-- Add commands, outputs, or screenshots that show it works. -->
 
-<!-- Credential, executable, process, platform, or Claude Code/gateway implications. -->
+## Sensitive paths
+
+- [ ] This PR changes a sensitive path listed in the `AGENTS.md` profile, or
+      security-sensitive behavior or rules elsewhere. If checked, an
+      independent review (another agent or the owner) is recorded on this PR
+      against the reviewed head commit before merge; a later push needs a new
+      review.
 
 ## Issue
 
