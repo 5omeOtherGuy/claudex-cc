@@ -7,7 +7,7 @@
 - Landing: PR, squash-merged on a green gate; agents land: yes
 - Release: tag-triggered release workflow (`.github/workflows/release.yml`); agents release: no
 - Outside issues and PRs: agents triage; outside PRs merge: owner approves
-- Sensitive paths: `src/auth/`, `src/security/`, `src/gateway/`, `src/lifecycle/`, `src/launcher/`, `src/config/`, `src/commands/`, `src/cli.ts`, `bin/`, `.claude-plugin/`, `skills/`, `agents/`, `hooks/`, `scripts/`, `package.json`, `package-lock.json`, `.github/`, `.githooks/`, `.agents/`, `.claude/`, `AGENTS.md`
+- Sensitive paths: `src/auth/`, `src/security/`, `src/gateway/`, `src/lifecycle/`, `src/launcher/`, `src/platform/`, `src/config/`, `src/commands/`, `src/cli.ts`, `bin/`, `.claude-plugin/`, `skills/`, `agents/`, `hooks/`, `scripts/`, `package.json`, `package-lock.json`, `.github/`, `.githooks/`, `.agents/`, `.claude/`, `AGENTS.md`
 
 Deliberate deviations from the standard:
 
