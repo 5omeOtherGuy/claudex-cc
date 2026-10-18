@@ -2,11 +2,12 @@
 
 ## Profile
 - Purpose: Claude Code plugin and launcher that runs Codex models through a managed localhost gateway
-- Stage: pre-release (repository standard 2026-10-17)
+- Stage: pre-release (repository standard 2026-10-18)
 - Gate: `npm run check` (CI job `gate`)
 - Landing: PR, squash-merged on a green gate; agents land: yes
 - Release: tag-triggered release workflow (`.github/workflows/release.yml`); agents release: no
 - Outside issues and PRs: agents triage; outside PRs merge: owner approves
+- Sensitive paths: `src/auth/`, `src/security/`, `src/gateway/`, `src/lifecycle/`, `src/launcher/`, `src/platform/`, `src/config/`, `src/commands/`, `src/cli.ts`, `bin/`, `.claude-plugin/`, `skills/`, `agents/`, `hooks/`, `scripts/`, `package.json`, `package-lock.json`, `.github/`, `.githooks/`, `.agents/`, `.claude/`, `AGENTS.md`
 
 Deliberate deviations from the standard:
 
@@ -64,6 +65,10 @@ translator unless an approved ADR establishes a measured need.
 - Prefer branch names `feat/<issue>-<slug>`, `fix/<issue>-<slug>`, or
   `docs/<issue>-<slug>`.
 - Run `npm run check` before opening or updating a pull request.
+- A pull request that changes a sensitive path (see Profile), or alters
+  security-sensitive behavior or rules elsewhere, needs an independent review
+  (another agent or the owner) recorded on the PR against its head commit
+  before merge; a later push needs a new review.
 - Use squash merge. Remove merged worktrees with
   `npm run cleanup:worktree -- <path> [branch]`.
 
