@@ -8,7 +8,7 @@
 
 ## Constraints touched
 
-<!-- Which product-boundary rules, security invariants, or ADRs in AGENTS.md and docs/adr/ does this touch, and how are they kept? Say "none" if none. -->
+<!-- Which product-boundary rules, security invariants, or ADRs in AGENTS.md and docs/adr/ does this touch, and how are they kept? Describe the security and compatibility impact: credential, executable, process, platform, or Claude Code/gateway implications. Say "none" where it applies. -->
 
 ## Evidence
 
