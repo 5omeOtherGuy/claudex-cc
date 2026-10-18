@@ -1,5 +1,37 @@
 # Claudex contributor instructions
 
+## Profile
+- Purpose: Claude Code plugin and launcher that runs Codex models through a managed localhost gateway
+- Stage: pre-release (repository standard 2026-10-17)
+- Gate: `npm run check` (CI job `gate`)
+- Landing: PR, squash-merged on a green gate; agents land: yes
+- Release: tag-triggered release workflow (`.github/workflows/release.yml`); agents release: no
+- Outside issues and PRs: agents triage; outside PRs merge: owner approves
+
+Deliberate deviations from the standard:
+
+- Every change lands through one worktree, one branch and one squash-merged
+  PR per issue, which is stricter than pre-release trunk landing. The Amp ship
+  behaviour is therefore `Push to Branch`, and `.githooks/pre-push` refuses
+  direct pushes to `main`.
+- A new gateway or translator needs an approved ADR (see Product boundary).
+- The security invariants and the verification-by-change-type rules below,
+  the ignored `.internal/` directory, and compatibility-matrix updates
+  (`CONTRIBUTING.md`) are repository-specific additions.
+
+## Map
+
+- `src/`: the control CLI (`src/cli.ts`, `src/commands/`), gateway manifest
+  and install (`src/gateway/`), lifecycle (`src/lifecycle/`), platform paths
+  (`src/platform/`), auth (`src/auth/`), security helpers (`src/security/`).
+- `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `bin/`: the plugin surface.
+- `tests/`: deterministic `node:test` suites mirroring `src/`.
+- `docs/`: architecture, ADRs, compatibility matrix, release checklist.
+- `scripts/`: gate helpers, release checks, worktree tooling.
+- One test file: `node --test --import tsx tests/gateway/manifest.test.ts`.
+- Orbs run `.agents/setup`; other checkouts enable the hooks once with
+  `git config core.hooksPath .githooks`.
+
 ## Product boundary
 
 Claudex is a Claude Code plugin plus a stable pre-launch manager for a pinned,
