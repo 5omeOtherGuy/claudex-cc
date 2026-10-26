@@ -61,7 +61,7 @@
     "cleanup:worktree": "bash scripts/worktree-cleanup.sh"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
+    "@biomejs/biome": "2.6.2",
     "@types/node": "22.19.21",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
