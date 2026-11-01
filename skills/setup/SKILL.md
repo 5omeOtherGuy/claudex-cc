@@ -1,4 +1,5 @@
 ---
+
 name: setup
 description: Preflight, configure, install, authenticate, and verify Claudex.
 allowed-tools: Bash, AskUserQuestion

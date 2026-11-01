@@ -1,6 +1,7 @@
 # Claudex contributor instructions
 
 ## Profile
+
 - Purpose: Claude Code plugin and launcher that runs Codex models through a managed localhost gateway
 - Stage: pre-release (repository standard 2026-10-18)
 - Gate: `npm run check` (CI job `gate`)
@@ -10,7 +11,6 @@
 - Sensitive paths: `src/auth/`, `src/security/`, `src/gateway/`, `src/lifecycle/`, `src/launcher/`, `src/platform/`, `src/config/`, `src/commands/`, `src/cli.ts`, `bin/`, `.claude-plugin/`, `skills/`, `agents/`, `hooks/`, `scripts/`, `package.json`, `package-lock.json`, `.github/`, `.githooks/`, `.agents/`, `.claude/`, `AGENTS.md`
 
 Deliberate deviations from the standard:
-
 - Every change lands through one worktree, one branch and one squash-merged
   PR per issue, which is stricter than pre-release trunk landing. The Amp ship
   behaviour is therefore `Push to Branch`, and `.githooks/pre-push` refuses

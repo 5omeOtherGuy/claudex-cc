@@ -17,7 +17,6 @@ account identifiers, prompts, and payload bodies.
 ## Security-sensitive scope
 
 In scope:
-
 - OAuth orchestration and credential metadata handling
 - local gateway authentication and lifecycle
 - artifact download, checksum verification, activation, and rollback
@@ -27,7 +26,6 @@ In scope:
 - plugin hooks and command execution
 
 Out of scope:
-
 - vulnerabilities in Claude Code, Anthropic, OpenAI, Node.js, or CLIProxyAPI
   itself; report them to the relevant upstream project
 - issues requiring an attacker who already controls the user's account and can

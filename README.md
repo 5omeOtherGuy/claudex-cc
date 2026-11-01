@@ -19,7 +19,6 @@ and smoke-tested with one-command rollback, and every diagnostic is redacted.
 Claude Code plugins can add skills, agents, hooks, MCP servers, and executables,
 but they cannot register a primary model provider or change the transport of a
 running session. Claudex therefore has two cooperating layers:
-
 1. a Claude Code plugin for setup, configuration, diagnostics, updates, and
    guided relaunch;
 2. a stable pre-launch manager that starts the gateway and supplies the model

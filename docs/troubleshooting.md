@@ -14,7 +14,6 @@ design — no tokens, callback URLs, or account identifiers appear in output.
 ## Launch is blocked
 
 The readiness ladder fails closed in order:
-
 - `gateway_missing` — no activated gateway. Run `/claudex:setup` (or
   `claudex-pluginctl setup`).
 - `not_logged_in` — no Codex credentials. Run `/claudex:login`; it opens browser

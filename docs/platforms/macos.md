@@ -2,7 +2,6 @@
 
 Claudex supports Intel (`darwin-x64`) and Apple Silicon (`darwin-arm64`)
 macOS systems in both runtime modes:
-
 - **Persistent mode** installs a per-user LaunchAgent
   (`~/Library/LaunchAgents/com.claudex.gateway.plist`) that starts the
   gateway at login, restarts it on failure (`KeepAlive` with

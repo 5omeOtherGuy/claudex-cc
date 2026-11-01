@@ -1,4 +1,5 @@
 ---
+
 name: status
 description: Show the current Claudex manager, gateway, authentication, and compatibility status.
 allowed-tools: Bash
@@ -9,7 +10,6 @@ faithfully. Never infer readiness from a running process alone; only the CLI's
 launch-readiness result counts.
 
 Interpret the output for the user:
-
 - `session:` says how the current session was launched. If it does not run
   through the gateway, explain the guided relaunch: finish or park this
   session, then start a new one with the `claudex` launcher. Never claim the

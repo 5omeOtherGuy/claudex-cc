@@ -43,7 +43,6 @@ manual proxy administration.
 parallel worktree development and public contribution.
 
 **Definition of done:**
-
 - TypeScript manager and Claude Code plugin scaffold build successfully.
 - CI runs lint, typecheck, tests, build, plugin validation, and package dry run.
 - Linux, macOS, and Windows portability jobs exist.
@@ -57,7 +56,6 @@ parallel worktree development and public contribution.
 manager behavior without storing secrets in project files.
 
 **Definition of done:**
-
 - Schema, defaults, migration version, and validation errors are implemented.
 - XDG/macOS/Windows paths are covered by deterministic tests.
 - Writes are atomic and retain a recoverable previous version.
@@ -70,7 +68,6 @@ manager behavior without storing secrets in project files.
 platform.
 
 **Definition of done:**
-
 - Committed manifest maps supported OS/architecture pairs to exact assets and
   SHA-256 hashes.
 - Downloads use TLS, bounded timeouts, temporary files, and checksum validation.
@@ -85,7 +82,6 @@ platform.
 without exposing callback material.
 
 **Definition of done:**
-
 - Browser flow is the in-product default, reports only bounded redacted progress,
   and accepts success only after the pinned gateway validates the real callback
   state for that active attempt.
@@ -102,7 +98,6 @@ without exposing callback material.
 reliably.
 
 **Definition of done:**
-
 - Manager selects or validates a loopback port and per-session client secret.
 - Startup waits for health with a bounded timeout.
 - Claude Code receives the gateway/model environment before process start.
@@ -116,7 +111,6 @@ reliably.
 service.
 
 **Definition of done:**
-
 - Service unit is generated from validated paths and runs with umask 077.
 - Install, enable, start, stop, restart, status, and removal are idempotent.
 - Existing unrelated CLIProxyAPI services are detected and never overwritten.
@@ -129,7 +123,6 @@ service.
 normal `claude` untouched.
 
 **Definition of done:**
-
 - Stable launcher is installed outside versioned plugin caches.
 - It validates readiness, selects main/subagent models, and executes Claude Code.
 - No global Claude model or base-URL setting is required.
@@ -141,7 +134,6 @@ normal `claude` untouched.
 **Goal:** Turn setup and compatibility failures into redacted, actionable output.
 
 **Definition of done:**
-
 - Status reports manager, gateway, auth metadata, service, model, and launch
   readiness without reading token contents.
 - Doctor checks versions, checksums, permissions, bind address, health, model
@@ -155,7 +147,6 @@ normal `claude` untouched.
 **Goal:** Provide guided in-product setup backed by the deterministic manager.
 
 **Definition of done:**
-
 - `/claudex:setup`, `/claudex:login`, and `/claudex:config` are implemented.
 - Menus cover runtime mode, models, presets, and authentication method.
 - Skills call the manager rather than duplicating business logic.
@@ -167,7 +158,6 @@ normal `claude` untouched.
 **Goal:** Complete the operational plugin surface for daily use and recovery.
 
 **Definition of done:**
-
 - `/claudex:status`, `/claudex:doctor`, `/claudex:update`, and
   `/claudex:uninstall` are implemented.
 - Session-start guidance detects incorrect launch mode and configuration drift.
@@ -183,7 +173,6 @@ normal `claude` untouched.
 and beta compatibility.
 
 **Definition of done:**
-
 - Compatibility, Balanced, and Maximum Reasoning presets are implemented.
 - Context threshold reserves measured output/tool/reasoning headroom.
 - Response headroom is enforced locally; proxy-side output enforcement is added
@@ -198,7 +187,6 @@ and beta compatibility.
 installation.
 
 **Definition of done:**
-
 - Updates stage a candidate version on a temporary endpoint.
 - Health, model, token-count, stream, and tool smoke tests gate activation.
 - Previous manager/config/gateway state remains recoverable.
@@ -211,7 +199,6 @@ installation.
 fail closed.
 
 **Definition of done:**
-
 - Owner-only permissions and umask are enforced and tested.
 - Central redaction covers headers, tokens, callback URLs, and structured errors.
 - Artifact allowlists, checksum verification, and path traversal protections are
@@ -226,7 +213,6 @@ fail closed.
 Apple Silicon systems.
 
 **Definition of done:**
-
 - Correct artifacts are selected and verified for both architectures.
 - LaunchAgent install/remove/status behavior is idempotent.
 - Keychain/quarantine/signing behavior is documented and tested where possible.
@@ -239,7 +225,6 @@ Apple Silicon systems.
 administrator service.
 
 **Definition of done:**
-
 - PowerShell/stable launcher installation and quoting are tested.
 - Session-mode lifecycle handles Ctrl+C, child exit, ports, and temporary state.
 - Windows credential and permission limitations are documented.
@@ -252,7 +237,6 @@ administrator service.
 future Claude Code and gateway changes.
 
 **Definition of done:**
-
 - Release workflow verifies versions, changelog, tests, package allowlist, and
   compatibility metadata.
 - GitHub Release contains bundles, checksums, SBOM, and provenance where

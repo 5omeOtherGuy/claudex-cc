@@ -24,10 +24,10 @@
 ## Sensitive paths
 
 - [ ] This PR changes a sensitive path listed in the `AGENTS.md` profile, or
-      security-sensitive behavior or rules elsewhere. If checked, an
-      independent review (another agent or the owner) is recorded on this PR
-      against the reviewed head commit before merge; a later push needs a new
-      review.
+  security-sensitive behavior or rules elsewhere. If checked, an
+  independent review (another agent or the owner) is recorded on this PR
+  against the reviewed head commit before merge; a later push needs a new
+  review.
 
 ## Issue
 

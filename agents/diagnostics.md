@@ -1,4 +1,5 @@
 ---
+
 name: diagnostics
 description: Investigate Claudex setup and compatibility problems using redacted, read-only checks.
 tools: Read, Bash

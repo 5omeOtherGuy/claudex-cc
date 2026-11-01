@@ -30,7 +30,6 @@ compatibility product, not a supported Claude Code provider.
 
 Claudex renders these validated configuration values into the gateway
 configuration of the pinned release:
-
 - **Presets** — `config preset compatibility | balanced | max-reasoning`
   bundle reasoning effort, context thresholds, response headroom, and retry
   policy. Presets never touch models, runtime mode, or advanced options.

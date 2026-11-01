@@ -6,7 +6,6 @@ Work state lives in GitHub issues; this page only summarizes the phases.
 
 Everything the original epic [#20] planned is implemented on `main` and recorded
 under `Unreleased` in [`CHANGELOG.md`](../CHANGELOG.md):
-
 - validated configuration, presets, context headroom, and a bounded gateway
   request policy;
 - the pinned, checksum-verified CLIProxyAPI gateway with staged, smoke-gated

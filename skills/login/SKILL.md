@@ -1,4 +1,5 @@
 ---
+
 name: login
 description: Authenticate the managed Codex gateway through a guided browser flow.
 allowed-tools: Bash, AskUserQuestion
@@ -7,7 +8,6 @@ allowed-tools: Bash, AskUserQuestion
 Run authentication as a controlled, in-product workflow. Keep updates concise;
 do not ask the user to copy commands or paste terminal output during the normal
 browser flow.
-
 1. Say `[1/3] Checking authentication state.` Run
    `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl status`.
    - If credentials are owner-only and launch readiness is OK, say

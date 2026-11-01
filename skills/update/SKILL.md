@@ -1,4 +1,5 @@
 ---
+
 name: update
 description: Safely update Claudex or its pinned gateway with verification and rollback.
 allowed-tools: Bash, AskUserQuestion
@@ -7,7 +8,6 @@ allowed-tools: Bash, AskUserQuestion
 Updates are staged and checksum-verified; the previous gateway version is kept
 for rollback. Never download or execute anything yourself — the control CLI is
 the only updater.
-
 1. Run `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl update --check` and show
    the user the plan: current version, target version, SHA-256, and the
    compatibility impact line. If it reports "Nothing to do", stop here.

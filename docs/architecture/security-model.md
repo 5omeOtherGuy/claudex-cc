@@ -36,7 +36,6 @@
 ## Fail-closed behavior
 
 Claudex refuses to:
-
 - execute an unverified binary,
 - write secrets to a group/world-readable path,
 - bind a gateway to a non-loopback address without an explicit future design,

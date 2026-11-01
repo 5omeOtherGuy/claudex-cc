@@ -1,4 +1,5 @@
 ---
+
 name: config
 description: View or change validated Claudex runtime, model, and compatibility settings.
 allowed-tools: Bash, AskUserQuestion
@@ -7,7 +8,6 @@ allowed-tools: Bash, AskUserQuestion
 Use the control CLI for every configuration read and write; never edit config
 files directly, never touch global Claude Code model settings, and never store
 gateway credentials in project files.
-
 1. Show the current state with
    `${CLAUDE_PLUGIN_ROOT}/bin/claudex-pluginctl config show`.
 2. For reasoning/context/output/retry tuning, offer the named presets first
@@ -15,8 +15,8 @@ gateway credentials in project files.
    - `compatibility` — most conservative; use when sessions hit limits.
    - `balanced` — the shipped defaults.
    - `max-reasoning` — deepest reasoning and largest output budget.
-   Apply with `claudex-pluginctl config preset <name>`; presets never touch
-   models, runtime mode, or advanced options.
+     Apply with `claudex-pluginctl config preset <name>`; presets never touch
+     models, runtime mode, or advanced options.
 3. Offer individual changes with AskUserQuestion menus and apply each choice
    with `claudex-pluginctl config set <key> <value>`:
    - Runtime mode: `runtime.mode` = `persistent` | `session`.

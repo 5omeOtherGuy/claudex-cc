@@ -25,7 +25,21 @@ body:
     id: feature
     attributes:
       label: Failing capability
-      options: [startup, OAuth, text streaming, tools, parallel tools, subagents, image input, compaction, update, rollback, uninstall, other]
+      options:
+        [
+          startup,
+          OAuth,
+          text streaming,
+          tools,
+          parallel tools,
+          subagents,
+          image input,
+          compaction,
+          update,
+          rollback,
+          uninstall,
+          other,
+        ]
     validations:
       required: true
   - type: textarea

@@ -1,4 +1,5 @@
 ---
+
 name: doctor
 description: Diagnose Claudex installation and compatibility problems with redacted checks.
 allowed-tools: Bash, AskUserQuestion
