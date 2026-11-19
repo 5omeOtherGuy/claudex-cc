@@ -2,7 +2,7 @@
 
 ## Profile
 - Purpose: Claude Code plugin and launcher that runs Codex models through a managed localhost gateway
-- Stage: pre-release (repository standard 2026-10-18)
+- Stage: pre-release (repository standard)
 - Gate: `npm run check` (CI job `gate`)
 - Landing: PR, squash-merged on a green gate; agents land: yes
 - Release: tag-triggered release workflow (`.github/workflows/release.yml`); agents release: no
@@ -16,22 +16,6 @@ Deliberate deviations from the standard:
   behaviour is therefore `Push to Branch`, and `.githooks/pre-push` refuses
   direct pushes to `main`.
 - A new gateway or translator needs an approved ADR (see Product boundary).
-- The security invariants and the verification-by-change-type rules below,
-  the ignored `.internal/` directory, and compatibility-matrix updates
-  (`CONTRIBUTING.md`) are repository-specific additions.
-
-## Map
-
-- `src/`: the control CLI (`src/cli.ts`, `src/commands/`), gateway manifest
-  and install (`src/gateway/`), lifecycle (`src/lifecycle/`), platform paths
-  (`src/platform/`), auth (`src/auth/`), security helpers (`src/security/`).
-- `skills/`, `agents/`, `hooks/`, `.claude-plugin/`, `bin/`: the plugin surface.
-- `tests/`: deterministic `node:test` suites mirroring `src/`.
-- `docs/`: architecture, ADRs, compatibility matrix, release checklist.
-- `scripts/`: gate helpers, release checks, worktree tooling.
-- One test file: `node --test --import tsx tests/gateway/manifest.test.ts`.
-- Orbs run `.agents/setup`; other checkouts enable the hooks once with
-  `git config core.hooksPath .githooks`.
 
 ## Product boundary
 
@@ -61,7 +45,10 @@ translator unless an approved ADR establishes a measured need.
 - The primary checkout is control-only after the bootstrap commit. Implement
   issues in a dedicated worktree branched from `origin/main`.
 - Run `npm run preflight` before creating a worktree.
-- Use one branch and one pull request per issue.
+- Enable the hooks once per checkout: `git config core.hooksPath .githooks`
+  (orbs: `.agents/setup`).
+- Run Node through mise (`mise exec -- node`, `npm`, `npx`) so `.nvmrc` applies.
+- Focused test: `node --test --import tsx tests/gateway/manifest.test.ts`.
 - Prefer branch names `feat/<issue>-<slug>`, `fix/<issue>-<slug>`, or
   `docs/<issue>-<slug>`.
 - Run `npm run check` before opening or updating a pull request.
@@ -69,7 +56,7 @@ translator unless an approved ADR establishes a measured need.
   security-sensitive behavior or rules elsewhere, needs an independent review
   (another agent or the owner) recorded on the PR against its head commit
   before merge; a later push needs a new review.
-- Use squash merge. Remove merged worktrees with
+- Remove merged worktrees with
   `npm run cleanup:worktree -- <path> [branch]`.
 
 ## Code conventions
