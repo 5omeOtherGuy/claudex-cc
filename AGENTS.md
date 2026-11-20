@@ -2,7 +2,7 @@
 
 ## Profile
 - Purpose: Claude Code plugin and launcher that runs Codex models through a managed localhost gateway
-- Stage: pre-release (repository standard 2026-10-18)
+- Stage: archived (repository standard)
 - Gate: `npm run check` (CI job `gate`)
 - Landing: PR, squash-merged on a green gate; agents land: yes
 - Release: tag-triggered release workflow (`.github/workflows/release.yml`); agents release: no

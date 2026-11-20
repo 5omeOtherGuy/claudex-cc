@@ -1,9 +1,10 @@
+Archived 2026-11-20: this repository is retired. Source, branches, tags and existing releases are retained for reference.
+
 # Claudex
 
 Run Codex subscription models in Claude Code through a managed localhost gateway with OAuth, diagnostics, updates, and rollback.
 
-Status: pre-release. Usable from a checkout, with no tagged release yet;
-commands and configuration may still change without notice.
+Status: archived. Retained for reference; no further development is planned.
 
 [![CI](https://github.com/5omeOtherGuy/claudex-cc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/5omeOtherGuy/claudex-cc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
